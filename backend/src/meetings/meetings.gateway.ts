@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import {
   ConnectedSocket,
   MessageBody,
@@ -17,9 +17,9 @@ import { iceServers } from './ice-servers';
 // the browsers must swap connection details, and this gateway is the
 // go-between -- it passes "signal" messages along without reading them.
 
-// Every person connects to every other person, so it gets heavy past a
-// handful of people.
-const MAX_PEOPLE = 6;
+// One-to-one calls only: one person speaking Hindi/Telugu, one listening in
+// English. Keeps the call simple, and the cost at one translation at a time.
+const MAX_PEOPLE = 2;
 
 interface JoinMessage {
   code: string;
@@ -41,6 +41,8 @@ function meetingCodeOf(client: Socket): string | undefined {
   },
 })
 export class MeetingsGateway implements OnGatewayDisconnect {
+  private readonly logger = new Logger('Captions');
+
   @WebSocketServer()
   server: Server;
 
@@ -117,6 +119,23 @@ export class MeetingsGateway implements OnGatewayDisconnect {
     this.server
       .to(code)
       .emit('peer-updated', { peer: this.presence.get(code, client.id) });
+  }
+
+  // Each finished caption line, from the English listener's browser, is
+  // written to the server log: what was said and what it became. Handy for
+  // checking a test call afterwards. Nothing is stored.
+  @SubscribeMessage('caption')
+  handleCaption(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() body: { speaker: string; original: string; english: string },
+  ): void {
+    const code = meetingCodeOf(client);
+    const speaker = code && this.presence.get(code, body?.speaker);
+    if (!speaker) return;
+    const said = String(body.original ?? '').slice(0, 500);
+    const english = String(body.english ?? '').slice(0, 500);
+    this.logger.log(`${speaker.name} said: ${said}
+    English: ${english}`);
   }
 
   handleDisconnect(client: Socket): void {

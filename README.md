@@ -19,7 +19,8 @@ flowchart LR
     R -.->|"join, connection details"| S
 ```
 
-1. **Video call:** browsers connect straight to each other (WebRTC). The
+1. **Video call:** one-to-one -- a Hindi/Telugu speaker and an English
+   listener. The browsers connect straight to each other (WebRTC); the
    server only introduces them (Socket.IO) and keeps the list of who is in
    which meeting, in memory.
 2. **Translation:** an English listener's browser opens a second WebRTC
@@ -28,8 +29,10 @@ flowchart LR
    the captions on a data channel.
 3. **The API key stays on the server.** The browser asks our server for a
    short-lived key that works for one translation session only.
-4. The speaker's own voice is turned down to 15%, not muted: the translator
-   stays quiet for words already in English, and those should still be heard.
+4. The listener hears only the English voice: the speaker's own voice is
+   muted while the translation runs. Trade-off: the translator stays quiet
+   for words already spoken in English ("meeting", "okay"), so those are
+   only in the captions.
 
 ## Measured
 
@@ -45,6 +48,25 @@ the speaker's mic), with an English listener in a second window:
 Both translations were correct. The English keeps pace with the speaker
 instead of waiting for the sentence to end: Meet Translate shows its caption
 about 1 s *after* a sentence ends.
+
+### A real-voice test
+
+13 everyday Hindi sentences spoken into a laptop mic: **8 translated
+right, 2 partly, 3 wrong**. What went wrong, and why:
+
+- **It guesses early, then corrects itself out loud.** Hindi puts the verb
+  and the question word at the end ("kal wala issue fix ho gaya *kya*?").
+  The model starts speaking before it gets there, so the listener heard
+  "Yes, the previous issue is fixed" and then "Is the previous issue
+  fixed?". Same with a number: "two lakh", then "two hundred and fifty
+  thousand". It's the price of translating while someone is still talking.
+- **Idioms come out literally**: "baayein haath ka khel" (a piece of cake)
+  became "you can do this work manually".
+- **Mishearing comes first**: where the Hindi transcript was wrong, so was
+  the English.
+- **Real Telugu speech went much worse than Hindi**, though the clean
+  generated Telugu sentence above was fine. The model accepts no prompts or
+  glossaries, so there's nothing in this app to tune it with.
 
 ## Languages
 

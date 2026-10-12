@@ -10,10 +10,11 @@ import { startTranslator, type CaptionLine } from '@/lib/translator';
 import { Button, Card, ErrorText, Label } from '@/components/ui';
 import { VideoTile } from '@/components/video-tile';
 
-// How loud a speaker's own voice stays under their English translation.
-// Not silent: the translator says nothing for words already in English
-// ("meeting", "okay"), and those should still be heard.
-const ORIGINAL_VOLUME_UNDER_TRANSLATION = 0.15;
+// A speaker's own voice is muted while their English translation plays, so
+// the listener hears only English. (Trade-off: the translator says nothing
+// for words already spoken in English, like "meeting" or "okay", so those
+// aren't heard either -- they still show in the captions underneath.)
+const ORIGINAL_VOLUME_UNDER_TRANSLATION = 0;
 
 interface RemotePeer extends Peer {
   pc: RTCPeerConnection | null; // the video call connection to them
@@ -111,7 +112,10 @@ export default function MeetingRoom() {
 
     socket.on('peer-joined', (msg: { peer: Peer }) => upsertPeer(msg.peer)); // they will call us
 
-    socket.on('peer-updated', (msg: { peer: Peer }) => upsertPeer(msg.peer));
+    // Someone changed language. This also reaches the person who changed
+    // it, so only people already on the list are updated -- adding unknown
+    // ones once showed me a copy of myself, stuck on "Connecting...".
+    socket.on('peer-updated', (msg: { peer: Peer }) => updatePeer(msg.peer.socketId, { lang: msg.peer.lang }));
 
     socket.on('peer-left', (msg: { socketId: string }) => {
       setPeers((prev) => {
@@ -221,7 +225,12 @@ export default function MeetingRoom() {
         source,
         clientSecret,
         onAudio: (english) => update({ english, error: undefined }),
-        onLine: (line) => upsertCaption({ ...line, name: peer.name }),
+        onLine: (line) => {
+          upsertCaption({ ...line, name: peer.name });
+          // Finished lines also go to the server's log (see handleCaption).
+          if (line.done)
+            socketRef.current?.emit('caption', { speaker: peer.socketId, original: line.original, english: line.english });
+        },
         onError: (error) => update({ error }),
       });
       if (stopped) translator.stop();

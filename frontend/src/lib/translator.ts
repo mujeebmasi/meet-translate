@@ -13,6 +13,17 @@ const OPENAI_CALLS_URL = 'https://api.openai.com/v1/realtime/translations/calls'
 // line ends after this long with no new words.
 const LINE_PAUSE_MS = 1500;
 
+// OpenAI's text pieces usually carry their own spaces (" hear"), so they're
+// glued on as they come. But a piece that starts after a pause sometimes
+// has none, which ran words together in a real test ("appthat",
+// "budgetfor"). Pieces of one word arrive in one quick burst, so a missing
+// space is only added after a pause.
+const WORD_PAUSE_MS = 300;
+function joinPieces(text: string, piece: string, msSinceLastPiece: number): string {
+  const wordsWouldTouch = /[\p{L}\p{N}.,!?।]$/u.test(text) && /^[\p{L}\p{N}]/u.test(piece);
+  return text + (wordsWouldTouch && msSinceLastPiece > WORD_PAUSE_MS ? ' ' : '') + piece;
+}
+
 export interface CaptionLine {
   id: string;
   original: string; // what they said, in Hindi/Telugu script
@@ -37,21 +48,49 @@ export async function startTranslator(options: TranslatorOptions): Promise<{ sto
   };
 
   // --- captions ---
+  // A line is one sentence: the speaker's words and their English. A new
+  // line starts when the speaker starts talking again after a pause.
   const newLine = (): CaptionLine => ({ id: crypto.randomUUID(), original: '', english: '', done: false });
   let line = newLine();
+  let previous: CaptionLine | null = null; // the last finished line
+  let lastOriginalAt = 0;
+  let lastEnglishAt = 0;
   let pauseTimer: ReturnType<typeof setTimeout> | undefined;
   const finishLine = () => {
-    if (line.english || line.original) options.onLine({ ...line, done: true });
+    if (line.english || line.original) {
+      line.done = true;
+      options.onLine({ ...line });
+      previous = line;
+    }
     line = newLine();
+  };
+
+  const addOriginal = (piece: string) => {
+    const now = Date.now();
+    if (line.original && now - lastOriginalAt > LINE_PAUSE_MS) finishLine();
+    line.original = joinPieces(line.original, piece, now - lastOriginalAt);
+    lastOriginalAt = now;
+  };
+
+  const addEnglish = (piece: string) => {
+    const now = Date.now();
+    // The English runs behind the speaker. When it arrives after a pause and
+    // the speaker hasn't said anything new yet, it's the end (or a
+    // correction) of the sentence before, so it goes back on that line. In a
+    // real test it used to land on a line of its own, under the wrong words.
+    if (!line.original && !line.english && previous) {
+      line = previous;
+      line.done = false;
+    }
+    line.english = joinPieces(line.english, piece, now - lastEnglishAt);
+    lastEnglishAt = now;
   };
 
   const events = pc.createDataChannel('oai-events');
   events.onmessage = ({ data }) => {
     const event = JSON.parse(data);
-    // Pieces of text are glued on exactly as they come: OpenAI's pieces
-    // already carry their own spaces.
-    if (event.type === 'session.output_transcript.delta') line.english += event.delta;
-    else if (event.type === 'session.input_transcript.delta') line.original += event.delta;
+    if (event.type === 'session.output_transcript.delta') addEnglish(event.delta);
+    else if (event.type === 'session.input_transcript.delta') addOriginal(event.delta);
     else if (event.type === 'error') return options.onError(event.error?.message ?? 'Translator error');
     else return;
     options.onLine({ ...line });
