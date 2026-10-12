@@ -1,0 +1,5 @@
+# Each app also has its own .gitignore; this catches anything at the root.
+.DS_Store
+.env
+.env.*
+!.env.example

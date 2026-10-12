@@ -1,0 +1,41 @@
+import { Injectable } from '@nestjs/common';
+
+// A person currently on a call. `socketId` (their live connection) doubles
+// as their id: it's what WebRTC messages are addressed to.
+export interface Peer {
+  socketId: string;
+  name: string;
+  lang: string;
+}
+
+// Who is on each call right now, in memory. Nothing is kept once people
+// leave -- there's no database in this version.
+@Injectable()
+export class PresenceService {
+  private rooms = new Map<string, Map<string, Peer>>();
+
+  add(meetingCode: string, peer: Peer): void {
+    if (!this.rooms.has(meetingCode)) this.rooms.set(meetingCode, new Map());
+    this.rooms.get(meetingCode)!.set(peer.socketId, peer);
+  }
+
+  remove(meetingCode: string, socketId: string): void {
+    const room = this.rooms.get(meetingCode);
+    room?.delete(socketId);
+    // Forget a call once its last person leaves.
+    if (room?.size === 0) this.rooms.delete(meetingCode);
+  }
+
+  get(meetingCode: string, socketId: string): Peer | undefined {
+    return this.rooms.get(meetingCode)?.get(socketId);
+  }
+
+  list(meetingCode: string): Peer[] {
+    return [...(this.rooms.get(meetingCode)?.values() ?? [])];
+  }
+
+  setLang(meetingCode: string, socketId: string, lang: string): void {
+    const peer = this.get(meetingCode, socketId);
+    if (peer) peer.lang = lang;
+  }
+}

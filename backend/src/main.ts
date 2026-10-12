@@ -1,0 +1,32 @@
+import { NestFactory } from '@nestjs/core';
+import { Logger, ValidationPipe } from '@nestjs/common';
+import { AppModule } from './app.module';
+
+async function bootstrap() {
+  const logger = new Logger('Bootstrap');
+  if (!process.env.OPENAI_API_KEY)
+    logger.warn(
+      'OPENAI_API_KEY is not set. Calls work, but translation will fail until it is.',
+    );
+
+  const app = await NestFactory.create(AppModule);
+
+  // Every route starts with /api
+  app.setGlobalPrefix('api');
+
+  // Checks incoming request bodies against the DTO classes.
+  // whitelist strips any extra fields the client sent that we did not ask for.
+  app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
+
+  // The browser blocks requests to a different origin unless we allow it.
+  const allowedOrigins = (process.env.FRONTEND_URL ?? 'http://localhost:3100')
+    .split(',')
+    .map((origin) => origin.trim());
+  app.enableCors({ origin: allowedOrigins });
+
+  const port = process.env.PORT ?? 4100;
+  await app.listen(port);
+  logger.log(`API running on http://localhost:${port}/api`);
+}
+
+void bootstrap();
