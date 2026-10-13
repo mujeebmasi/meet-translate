@@ -11,7 +11,7 @@
 
 const CHECK_EVERY_MS = 50;
 const PAUSE_MS = 500; // this much quiet ends a sentence
-const MIN_SPEECH_MS = 250; // shorter than this is a click or a cough, not speech
+const MIN_SPEECH_MS = 400; // shorter than this is a click, a bump or a breath, not speech
 const MAX_SPEECH_MS = 15_000; // translate long monologues in pieces, not at the very end
 // Never treat sound quieter than this as speech. Kept low: a soft voice on a
 // laptop mic arrives quiet, and the first version (0.01) missed some real

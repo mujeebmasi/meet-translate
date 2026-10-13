@@ -27,6 +27,12 @@ const OPENAI_CALLS_URL = "https://api.openai.com/v1/realtime/calls";
 // long after the translation is finished, show the line without waiting.
 const TRANSCRIPT_WAIT_MS = 3000;
 
+// A sound shorter than this is checked for real words before being
+// translated (see check); one that never gets a transcript within the
+// deadline is treated as noise.
+const SHORT_SOUND_MS = 1500;
+const TRANSCRIPT_DEADLINE_MS = 2000;
+
 // How many earlier translations each reply is shown, to understand what's
 // being talked about.
 const CONTEXT_LINES = 3;
@@ -104,15 +110,20 @@ export async function startRealtime2(
   };
   const translationDone = new Set<CaptionLine>();
 
-  // --- the filler check ---
-  // Translate straight away, unless the transcript has already come in and
-  // is only a filler. Waiting for it to arrive cost up to 0.6s a sentence;
-  // a filler that slips through costs little now, because each reply sees
-  // only the new speech (and the prompt says to stay silent on fillers).
+  // --- the noise check ---
+  // A pause can follow a sound that wasn't speech: breathing, a click,
+  // background noise. Given one, the model often made up a sentence ("random
+  // sentences showing up" in a real call). So a SHORT sound waits for its
+  // transcript, and is translated only if that has real words; when nothing
+  // comes in time, it was noise. Longer sounds -- real sentences -- go
+  // straight through, with no added wait. Fillers ("hmm") are skipped too.
   function check(id: string) {
     checking.push({ id });
     const soFar = spoken.get(id)?.text ?? "";
-    decide(id, soFar && isFiller(soFar) ? "skip" : "translate");
+    if (soFar && isFiller(soFar)) return decide(id, "skip");
+    if ((spokeMs.get(id) ?? 0) >= SHORT_SOUND_MS) return decide(id, "translate");
+    // Decided when its transcript completes (see below), or skipped.
+    setTimeout(() => decide(id, "skip"), TRANSCRIPT_DEADLINE_MS);
   }
   function decide(id: string, verdict: "translate" | "skip") {
     const entry = checking.find((c) => c.id === id);
@@ -285,7 +296,7 @@ export async function startRealtime2(
       content: [
         {
           type: "input_text",
-          text: "Interpret only the speech just above, as the interpreter. A question stays a question: translate it, never answer it. Never reply as yourself.",
+          text: "Interpret only the speech just above, as the interpreter. A question stays a question: translate it, never answer it. Never reply as yourself. If it is only noise, breathing or a sound with no clear words, say nothing at all -- never make a sentence up.",
         },
       ],
     };
