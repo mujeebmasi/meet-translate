@@ -16,6 +16,9 @@ import { VideoTile } from '@/components/video-tile';
 // aren't heard either -- they still show in the captions underneath.)
 const ORIGINAL_VOLUME_UNDER_TRANSLATION = 0;
 
+// The free server forgot this meeting (it restarts after ~15 idle minutes).
+const MEETING_GONE = 'This meeting has ended: the server restarted. Create a new meeting to continue.';
+
 interface RemotePeer extends Peer {
   pc: RTCPeerConnection | null; // the video call connection to them
   stream: MediaStream | null; // their camera + mic, once it arrives
@@ -45,6 +48,8 @@ export default function MeetingRoom() {
   const [peers, setPeers] = useState<RemotePeer[]>([]);
   const [muted, setMuted] = useState(false);
   const [cameraOff, setCameraOff] = useState(false);
+  // Shown above the call when the link to our server drops (see connectSocket).
+  const [serverNotice, setServerNotice] = useState('');
 
   // --- translation (only used when I listen in English) ---
   const [translateOn, setTranslateOn] = useState(true);
@@ -105,6 +110,7 @@ export default function MeetingRoom() {
 
     socket.on('welcome', (msg: { you: string; title: string; peers: Peer[]; iceServers: RTCIceServer[] }) => {
       mySocketIdRef.current = msg.you;
+      setServerNotice('');
       if (msg.iceServers?.length) iceServersRef.current = msg.iceServers;
       setMeetingTitle(msg.title);
       setJoined(true);
@@ -136,6 +142,22 @@ export default function MeetingRoom() {
     socket.on('connect_error', () => {
       setLobbyError('Could not reach the server.');
       setJoining(false);
+    });
+
+    // The link to our server dropped. Usually a network blip: it reconnects
+    // and rejoins by itself. But the free server also restarts after ~15
+    // idle minutes, which forgets every meeting -- then it turns the rejoin
+    // away ("io server disconnect"), and before this the page just went
+    // quiet, or sat on "Joining..." forever.
+    socket.on('disconnect', (reason) => {
+      if (reason === 'io client disconnect') return; // we left on purpose
+      const meetingGone = reason === 'io server disconnect';
+      if (!mySocketIdRef.current) {
+        setLobbyError(meetingGone ? MEETING_GONE : 'Lost the connection to the server. Try again.');
+        setJoining(false);
+      } else {
+        setServerNotice(meetingGone ? MEETING_GONE : 'Lost the connection to the server. Reconnecting...');
+      }
     });
   }
 
@@ -344,7 +366,10 @@ export default function MeetingRoom() {
     return (
       <main className="mx-auto flex min-h-screen max-w-md flex-col justify-center gap-4 px-4">
         <h2 className="text-2xl font-semibold">Meeting not found</h2>
-        <p className="text-muted">Check the link or code and try again.</p>
+        <p className="text-muted">
+          Check the link or code. Meetings also end when the server restarts (it does after ~15 idle minutes), so it may
+          need creating again.
+        </p>
         <Link href="/" className="text-sm text-brand hover:underline">
           Create a new meeting
         </Link>
@@ -357,6 +382,7 @@ export default function MeetingRoom() {
       <main className="mx-auto flex min-h-screen max-w-md flex-col justify-center px-4">
         <Card className="flex flex-col gap-3">
           <h2 className="text-xl font-semibold">{meetingTitle || 'Loading meeting...'}</h2>
+          {!meetingTitle && <p className="text-sm text-muted">The server may take up to a minute to wake up.</p>}
           <form onSubmit={join} className="flex flex-col gap-3">
             <div>
               <Label>Your name</Label>
@@ -405,6 +431,8 @@ export default function MeetingRoom() {
           <LanguageSelect value={lang} onChange={changeLang} className="w-auto" />
         </label>
       </header>
+
+      {serverNotice && <p className="bg-warn-soft px-4 py-2 text-sm text-warn">{serverNotice}</p>}
 
       <section className="grid flex-1 grid-cols-[repeat(auto-fit,minmax(240px,1fr))] gap-2 overflow-auto p-2">
         <VideoTile

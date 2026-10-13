@@ -155,7 +155,7 @@ export class MeetingsGateway implements OnGatewayDisconnect {
     After the pause: text ${seconds(body.timing.textMs)}, voice ${seconds(body.timing.voiceMs)}`
       : '';
     this.logger.log(`${speaker.name} said: ${said}
-    English: ${english}${cost}${timing}`);
+    Translation: ${english}${cost}${timing}`);
   }
 
   handleDisconnect(client: Socket): void {

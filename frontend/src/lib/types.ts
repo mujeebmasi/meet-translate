@@ -20,8 +20,6 @@ export const LANGUAGES: Record<string, string> = {
   te: 'Telugu',
 };
 
-export const TARGET_LANG = 'en';
-
 // Who hears whom translated -- same rule as the backend's languages.ts:
 // Hindi/Telugu into English with either model; Hindi <-> Telugu only with
 // GPT-Realtime-2 (the other model can't speak Telugu).

@@ -25,10 +25,7 @@ interface PauseDetectorOptions {
   onQuiet: () => void; // called every 2s while nobody's talking
 }
 
-export function watchForPauses(
-  track: MediaStreamTrack,
-  options: PauseDetectorOptions,
-): { stop: () => void } {
+export function watchForPauses(track: MediaStreamTrack, options: PauseDetectorOptions): { stop: () => void } {
   const audio = new AudioContext();
   // Browsers may keep audio processing paused until the page is clicked
   // (Brave especially) -- and then this would hear only silence. Try now,
@@ -62,10 +59,7 @@ export function watchForPauses(
     const level = Math.sqrt(sum / samples.length);
     const now = Date.now();
 
-    background =
-      level < background
-        ? background * 0.7 + level * 0.3
-        : background * 0.995 + level * 0.005;
+    background = level < background ? background * 0.7 + level * 0.3 : background * 0.995 + level * 0.005;
     const loud = level > Math.max(MIN_LEVEL, background * ABOVE_BACKGROUND);
 
     if (!speaking) {
