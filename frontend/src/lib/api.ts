@@ -26,8 +26,15 @@ export function errorMessage(error: unknown): string {
 }
 
 export const api = {
-  createMeeting: (title: string, translator: string): Promise<Meeting> =>
-    request('/meetings', { method: 'POST', body: JSON.stringify({ title, translator }) }),
+  // Whether creating a meeting needs an access code (set on public servers).
+  getConfig: (): Promise<{ accessCodeRequired: boolean }> => request('/config'),
+
+  createMeeting: (title: string, translator: string, accessCode: string): Promise<Meeting> =>
+    request('/meetings', {
+      method: 'POST',
+      body: JSON.stringify({ title, translator }),
+      headers: { 'x-access-code': accessCode },
+    }),
 
   getMeeting: (code: string): Promise<Meeting> => request(`/meetings/${code}`),
 

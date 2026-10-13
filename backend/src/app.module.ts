@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { OpenAiModule } from './openai/openai.module';
 import { MeetingsModule } from './meetings/meetings.module';
+import { ConfigController } from './config.controller';
 
 @Module({
   imports: [
@@ -10,5 +11,6 @@ import { MeetingsModule } from './meetings/meetings.module';
     OpenAiModule,
     MeetingsModule,
   ],
+  controllers: [ConfigController],
 })
 export class AppModule {}

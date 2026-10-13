@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { api, errorMessage } from '@/lib/api';
 import { TRANSLATORS } from '@/lib/types';
@@ -13,13 +13,32 @@ export default function HomePage() {
   const [code, setCode] = useState('');
   const [error, setError] = useState('');
   const [creating, setCreating] = useState(false);
+  // A public server asks for an access code before creating a meeting (so
+  // a stranger with the link can't run up the OpenAI bill). Remembered in
+  // this browser after the first time.
+  const [needsCode, setNeedsCode] = useState(false);
+  const [serverReady, setServerReady] = useState(false);
+  const [accessCode, setAccessCode] = useState(() =>
+    typeof window === 'undefined' ? '' : localStorage.getItem('omt:access-code') || '',
+  );
+
+  // Also wakes the server up: on a free host it sleeps when unused, and the
+  // first request after that can take up to a minute.
+  useEffect(() => {
+    api
+      .getConfig()
+      .then((config) => setNeedsCode(config.accessCodeRequired))
+      .catch((err) => setError(errorMessage(err)))
+      .finally(() => setServerReady(true));
+  }, []);
 
   async function createMeeting(e: FormEvent) {
     e.preventDefault();
     setError('');
     setCreating(true);
     try {
-      const meeting = await api.createMeeting(title, translator);
+      const meeting = await api.createMeeting(title, translator, accessCode.trim());
+      localStorage.setItem('omt:access-code', accessCode.trim());
       router.push(`/m/${meeting.code}`);
     } catch (err) {
       setError(errorMessage(err));
@@ -61,8 +80,19 @@ export default function HomePage() {
             </select>
             <p className="mt-1 text-xs text-muted">{TRANSLATORS[translator].about}</p>
           </div>
-          <Button type="submit" disabled={creating}>
-            {creating ? 'Creating...' : 'Create meeting'}
+          {needsCode && (
+            <div>
+              <Label>Access code</Label>
+              <input
+                value={accessCode}
+                onChange={(e) => setAccessCode(e.target.value)}
+                placeholder="Ask the owner of this site"
+                required
+              />
+            </div>
+          )}
+          <Button type="submit" disabled={creating || !serverReady}>
+            {!serverReady ? 'Waking the server up...' : creating ? 'Creating...' : 'Create meeting'}
           </Button>
         </form>
       </Card>

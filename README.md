@@ -169,8 +169,26 @@ and as Hindi in another (a different device, or headphones, to avoid echo).
 
 Tests: `cd backend && npm test`.
 
+## Deploying it (free: Vercel + Render)
+
+Nothing heavy runs on our side -- all the AI is at OpenAI -- so free hosting
+is enough:
+
+| Part | Where | Settings |
+|---|---|---|
+| Backend (NestJS + Socket.IO) | **Render**, free web service | `render.yaml` in this repo: New → Blueprint. Fill in `OPENAI_API_KEY`, `ACCESS_CODE`, `FRONTEND_URL` (the Vercel address) and, optionally, the TURN login |
+| Frontend (Next.js) | **Vercel** | Root directory `frontend`; env `NEXT_PUBLIC_API_URL=https://<render-address>/api` and `NEXT_PUBLIC_WS_URL=https://<render-address>` |
+
+On a public link, **creating a meeting needs the access code** (joining
+needs only the meeting link), so a stranger can't run up the OpenAI bill. A
+monthly budget limit on the OpenAI account is a good second guard.
+
+Free-plan trade-off: Render puts the backend to sleep after ~15 minutes with
+no visitors. The next visit wakes it in 30-60 s (the home page says "Waking
+the server up..." meanwhile), and meetings, kept in memory, are forgotten.
+
 ## Not in this first version
 
 Kept out on purpose, to start simple: a database (meetings are forgotten on
-restart), saved transcripts, captions for the speaker, and an access code
-or daily limit before putting it on a public link.
+restart), saved transcripts, captions for the speaker, and a daily usage
+limit (the access code and OpenAI's own budget limit guard the bill).

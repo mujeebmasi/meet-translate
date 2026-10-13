@@ -3,6 +3,7 @@ import {
   Controller,
   ForbiddenException,
   Get,
+  Headers,
   Param,
   Post,
 } from '@nestjs/common';
@@ -11,6 +12,7 @@ import { PresenceService } from './presence.service';
 import { CreateMeetingDto, TranslationSessionDto } from './meetings.dto';
 import { OpenAiService } from '../openai/openai.service';
 import { canTranslate } from '../languages';
+import { checkAccessCode } from '../access-code';
 
 @Controller('meetings')
 export class MeetingsController {
@@ -20,8 +22,13 @@ export class MeetingsController {
     private openai: OpenAiService,
   ) {}
 
+  // Needs the access code (header x-access-code) when the server has one.
   @Post()
-  create(@Body() dto: CreateMeetingDto) {
+  create(
+    @Body() dto: CreateMeetingDto,
+    @Headers('x-access-code') accessCode?: string,
+  ) {
+    checkAccessCode(accessCode);
     return this.meetings.create(dto.title ?? '', dto.translator);
   }
 

@@ -1,0 +1,39 @@
+# Render "Blueprint": sets up the backend (NestJS + Socket.IO) as a free web
+# service. In Render: New -> Blueprint -> pick this repo. Values marked
+# `sync: false` are secrets: Render asks for them once, in its dashboard,
+# so they never go into git.
+#
+# The frontend is deployed separately, on Vercel (see README).
+#
+# Free plan: the service sleeps after ~15 minutes with no visitors; the
+# next visit takes 30-60s to wake it, and meetings (kept in memory) are
+# forgotten. Fine for demos.
+services:
+  - type: web
+    name: openai-meet-translate-api
+    runtime: node
+    plan: free
+    rootDir: backend
+    # --include=dev: the build needs the Nest CLI and TypeScript.
+    buildCommand: npm ci --include=dev && npm run build
+    startCommand: node dist/main.js
+    healthCheckPath: /api/config
+    envVars:
+      - key: NODE_VERSION
+        value: "24"
+      - key: OPENAI_API_KEY
+        sync: false
+      # Needed to create a meeting, so strangers can't use the OpenAI key.
+      - key: ACCESS_CODE
+        sync: false
+      # The Vercel address of the frontend, e.g. https://openai-meet-translate.vercel.app
+      # (allowed to call this API; comma-separate several).
+      - key: FRONTEND_URL
+        sync: false
+      # TURN relay for networks that block direct video calls (optional).
+      - key: TURN_URL
+        value: turn:free.expressturn.com:3478
+      - key: TURN_USERNAME
+        sync: false
+      - key: TURN_PASSWORD
+        sync: false
