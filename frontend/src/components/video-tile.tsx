@@ -7,8 +7,6 @@ type VideoTileProps = {
   label: string;
   name: string; // its first letter is shown when there's no picture
   muted?: boolean; // your own tile: never play your own voice back
-  volume?: number; // 0..1, turned down while a translation plays over it
-  english?: MediaStream | null; // the translated English voice, if any
   mirror?: boolean; // your own camera, shown like a mirror
   videoOff?: boolean;
   notice?: string; // shown over the tile, e.g. still connecting
@@ -20,31 +18,20 @@ type VideoTileProps = {
 // Sound plays through its own <audio> element, not the <video>: a <video>
 // doesn't start until a picture arrives, so someone with no camera frames
 // would also be silent.
-export function VideoTile({ stream, label, name, muted = false, volume = 1, english, mirror, videoOff, notice }: VideoTileProps) {
+export function VideoTile({ stream, label, name, muted = false, mirror, videoOff, notice }: VideoTileProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
-  const englishRef = useRef<HTMLAudioElement>(null);
 
   useEffect(() => {
     if (videoRef.current) videoRef.current.srcObject = stream;
     if (audioRef.current) audioRef.current.srcObject = stream;
   }, [stream]);
 
-  useEffect(() => {
-    if (englishRef.current) englishRef.current.srcObject = english ?? null;
-  }, [english]);
-
-  // Volume has no HTML attribute; it can only be set on the element.
-  useEffect(() => {
-    if (audioRef.current) audioRef.current.volume = volume;
-  }, [volume]);
-
   const noPicture = !stream || videoOff || stream.getVideoTracks().length === 0 || !!notice;
 
   return (
     <div className="relative min-h-40 overflow-hidden rounded-xl bg-black">
       <audio ref={audioRef} autoPlay muted={muted} />
-      <audio ref={englishRef} autoPlay />
       <video
         ref={videoRef}
         autoPlay

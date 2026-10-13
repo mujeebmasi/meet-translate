@@ -10,12 +10,6 @@ import { startTranslator, type CaptionLine } from '@/lib/translator';
 import { Button, Card, ErrorText, Label } from '@/components/ui';
 import { VideoTile } from '@/components/video-tile';
 
-// A speaker's own voice is muted while their English translation plays, so
-// the listener hears only English. (Trade-off: the translator says nothing
-// for words already spoken in English, like "meeting" or "okay", so those
-// aren't heard either -- they still show in the captions underneath.)
-const ORIGINAL_VOLUME_UNDER_TRANSLATION = 0;
-
 // The free server forgot this meeting (it restarts after ~15 idle minutes).
 const MEETING_GONE = 'This meeting has ended: the server restarted. Create a new meeting to continue.';
 
@@ -51,17 +45,17 @@ export default function MeetingRoom() {
   // Shown above the call when the link to our server drops (see connectSocket).
   const [serverNotice, setServerNotice] = useState('');
 
-  // --- translation (only used when I listen in English) ---
-  const [translateOn, setTranslateOn] = useState(true);
+  // --- translation ---
+  const [translateOn, setTranslateOn] = useState(true); // do I want to hear others translated
   const [captions, setCaptions] = useState<Caption[]>([]);
-  // Per speaker: their English voice once it arrives, or what went wrong.
-  const [translations, setTranslations] = useState<Record<string, { english?: MediaStream; error?: string }>>({});
+  // Per listener: my voice translated for them, once it flows, or what went wrong.
+  const [translations, setTranslations] = useState<Record<string, { voice?: MediaStream; error?: string }>>({});
 
   const socketRef = useRef<Socket | null>(null);
   const mySocketIdRef = useRef('');
   const iceServersRef = useRef<RTCIceServer[]>([{ urls: 'stun:stun.l.google.com:19302' }]);
-  // The running translations, by speaker. A ref, not state: starting and
-  // stopping them shouldn't re-render anything by itself.
+  // The running translations of my voice, by listener. A ref, not state:
+  // starting and stopping them shouldn't re-render anything by itself.
   const translatorsRef = useRef(new Map<string, { stop: () => void }>());
 
   useEffect(() => {
@@ -125,7 +119,13 @@ export default function MeetingRoom() {
     // Someone changed language. This also reaches the person who changed
     // it, so only people already on the list are updated -- adding unknown
     // ones once showed me a copy of myself, stuck on "Connecting...".
-    socket.on('peer-updated', (msg: { peer: Peer }) => updatePeer(msg.peer.socketId, { lang: msg.peer.lang }));
+    socket.on('peer-updated', (msg: { peer: Peer }) =>
+      updatePeer(msg.peer.socketId, { lang: msg.peer.lang, translateOn: msg.peer.translateOn }),
+    );
+
+    // A line of what someone else said, translated for me by their browser
+    // (again each time it grows).
+    socket.on('caption', (caption: Caption) => upsertCaption(caption));
 
     socket.on('peer-left', (msg: { socketId: string }) => {
       setPeers((prev) => {
@@ -222,20 +222,31 @@ export default function MeetingRoom() {
   }
 
   // ---------- translation (OpenAI) ----------
+  //
+  // Everyone translates their OWN voice: my browser sends my mic to OpenAI,
+  // and the translation replaces my voice in what the listener receives.
+  // It used to be the other way round -- the listener's browser translated
+  // the voice it received -- but that voice had first crossed the call
+  // connection (often a slow relay), which made real calls much slower
+  // than Meet Translate, and its pauses were harder to find.
 
-  // Whether I hear this person through the translator.
-  // Everyone hears the others in their own "I speak" language, where this
-  // meeting's model can do that direction.
+  // Whether this person hears ME translated: the meeting's model can
+  // translate my language into theirs, and their switch is on.
+  function translateMeFor(peer: Peer) {
+    return peer.translateOn !== false && canTranslate(lang, peer.lang, translator);
+  }
+
+  // Whether I hear this person translated (for the label on their tile).
   function isTranslatedForMe(peer: Peer) {
     return translateOn && canTranslate(peer.lang, lang, translator);
   }
 
   async function startTranslation(peer: RemotePeer) {
-    const source = peer.stream!.getAudioTracks()[0];
-    const update = (changes: { english?: MediaStream; error?: string }) =>
+    const mic = localStream!.getAudioTracks()[0];
+    const update = (changes: { voice?: MediaStream; error?: string }) =>
       setTranslations((prev) => ({ ...prev, [peer.socketId]: { ...prev[peer.socketId], ...changes } }));
 
-    // Registered straight away (before the awaits), so the effect above
+    // Registered straight away (before the awaits), so the effect below
     // doesn't start a second one, and can stop this one mid-start.
     let stopped = false;
     let translator: { stop: () => void } | null = null;
@@ -250,27 +261,24 @@ export default function MeetingRoom() {
       const session = await api.startTranslation(code, mySocketIdRef.current, peer.socketId);
       if (stopped) return;
       translator = await startTranslator(session.translator, {
-        source,
+        source: mic,
         clientSecret: session.clientSecret,
-        onAudio: (english) => update({ english, error: undefined }),
+        onAudio: (voice) => {
+          keepFlowing(voice);
+          update({ voice, error: undefined });
+        },
         onLine: (line) => {
-          upsertCaption({ ...line, name: peer.name });
-          // Finished lines also go to the server's log (see handleCaption).
-          if (line.done)
-            socketRef.current?.emit('caption', {
-              speaker: peer.socketId,
-              original: line.original,
-              english: line.english,
-              usage: line.usage,
-              timing: line.timing,
-            });
+          // I see how I was understood; the listener gets the line through
+          // our server (which also logs finished lines).
+          upsertCaption({ ...line, id: `mine:${line.id}`, name: `You → ${LANGUAGES[peer.lang]}` });
+          socketRef.current?.emit('caption', { listener: peer.socketId, ...line });
         },
         onError: (error) => update({ error }),
       });
       if (stopped) translator.stop();
     } catch (err) {
-      // Not retried automatically (each try costs money): switching
-      // translation off and on again retries.
+      // Not retried automatically: switching translation off and on, or
+      // rejoining, retries.
       if (!stopped) update({ error: errorMessage(err) });
     }
   }
@@ -286,13 +294,12 @@ export default function MeetingRoom() {
     });
   }
 
-  // Keeps exactly one running translation per Hindi/Telugu speaker I can
-  // hear, and none otherwise -- each one is billed per minute, so it stops
-  // the moment it isn't needed (they leave, someone changes language, or I
-  // switch translation off).
+  // Keeps exactly one running translation of my voice per person who needs
+  // it, and none otherwise: it stops the moment it isn't needed (they
+  // leave, someone changes language, or they switch translation off).
   useEffect(() => {
-    if (!joined) return;
-    const wanted = peers.filter((p) => isTranslatedForMe(p) && p.stream?.getAudioTracks()[0]);
+    if (!joined || !localStream?.getAudioTracks()[0]) return;
+    const wanted = peers.filter((p) => translateMeFor(p));
     for (const [socketId, translator] of translatorsRef.current) {
       if (!wanted.some((p) => p.socketId === socketId)) {
         translator.stop();
@@ -302,9 +309,25 @@ export default function MeetingRoom() {
     for (const peer of wanted) {
       if (!translatorsRef.current.has(peer.socketId)) void startTranslation(peer);
     }
-    // isTranslatedForMe only reads translateOn, lang and translator, listed here.
+    // translateMeFor only reads lang and translator, listed here.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [joined, peers, lang, translateOn, translator]);
+  }, [joined, peers, lang, translator, localStream]);
+
+  // What each person receives as my voice: my translation for them once it
+  // flows, my own mic otherwise. Swapping the track on the call connection
+  // needs no reconnecting.
+  useEffect(() => {
+    const mic = localStream?.getAudioTracks()[0];
+    if (!mic) return;
+    for (const peer of peers) {
+      const sender = peer.pc?.getTransceivers().find((t) => t.receiver.track.kind === 'audio')?.sender;
+      const translated = translateMeFor(peer) ? translations[peer.socketId]?.voice?.getAudioTracks()[0] : undefined;
+      const track = translated ?? mic;
+      if (sender && sender.track !== track) void sender.replaceTrack(track);
+    }
+    // translateMeFor only reads lang and translator, listed here.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [peers, translations, localStream, lang, translator]);
 
   // Keep the captions scrolled to the newest line.
   const captionBoxRef = useRef<HTMLDivElement>(null);
@@ -327,6 +350,11 @@ export default function MeetingRoom() {
     if (!track) return;
     track.enabled = !track.enabled;
     setCameraOff(!track.enabled);
+  }
+
+  function changeTranslateOn(on: boolean) {
+    setTranslateOn(on);
+    socketRef.current?.emit('set-translate', { on }); // the speakers' browsers do the translating
   }
 
   function changeLang(newLang: string) {
@@ -409,9 +437,9 @@ export default function MeetingRoom() {
   }
 
   // Whether anyone here is (or could be) translated for me: decides whether
-  // the captions box and the translate switch mean anything to me.
-  const listening = peers.some((p) => canTranslate(p.lang, lang, translator)) || lang === 'en';
-  const errors = peers.filter((p) => isTranslatedForMe(p) && translations[p.socketId]?.error);
+  // my translate switch means anything.
+  const listening = peers.some((p) => canTranslate(p.lang, lang, translator));
+  const errors = peers.filter((p) => translateMeFor(p) && translations[p.socketId]?.error);
 
   return (
     <main className="flex h-screen flex-col">
@@ -443,20 +471,15 @@ export default function MeetingRoom() {
           name={name}
           label={`${name} (you) · ${LANGUAGES[lang]}${muted ? ' · mic off' : ''}`}
         />
-        {peers.map((p) => {
-          const translated = isTranslatedForMe(p) && !!translations[p.socketId]?.english;
-          return (
-            <VideoTile
-              key={p.socketId}
-              stream={p.stream}
-              volume={translated ? ORIGINAL_VOLUME_UNDER_TRANSLATION : 1}
-              english={isTranslatedForMe(p) ? translations[p.socketId]?.english : null}
-              name={p.name}
-              label={`${p.name} · ${LANGUAGES[p.lang] ?? p.lang}${translated ? ` → ${LANGUAGES[lang]}` : ''}`}
-              notice={p.link === 'failed' ? "Can't connect on this network." : undefined}
-            />
-          );
-        })}
+        {peers.map((p) => (
+          <VideoTile
+            key={p.socketId}
+            stream={p.stream}
+            name={p.name}
+            label={`${p.name} · ${LANGUAGES[p.lang] ?? p.lang}${isTranslatedForMe(p) ? ` → ${LANGUAGES[lang]}` : ''}`}
+            notice={p.link === 'failed' ? "Can't connect on this network." : undefined}
+          />
+        ))}
         {peers.length === 0 && (
           <div className="flex min-h-40 flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-line p-4 text-center">
             <p className="text-sm text-muted">Nobody else is here yet. Send them the invite link.</p>
@@ -469,16 +492,12 @@ export default function MeetingRoom() {
 
       <section className="border-t border-line bg-surface px-4 py-2">
         <div ref={captionBoxRef} className="h-36 overflow-y-auto">
-          {!listening && (
+          {captions.length === 0 && (
             <p className="py-1 text-sm text-muted">
-              Speak {LANGUAGES[lang]}. The others hear you translated into their language.
+              Translated captions appear here: yours as the others hear you, and theirs.
             </p>
           )}
-          {listening && captions.length === 0 && (
-            <p className="py-1 text-sm text-muted">Translated captions appear here when someone speaks.</p>
-          )}
-          {listening &&
-            captions
+          {captions
               // A reply to a filler sound ("um") can come back empty: hide it.
               .filter((c) => !c.done || c.english.trim())
               .map((c) => (
@@ -494,7 +513,7 @@ export default function MeetingRoom() {
         </div>
         {errors.map((p) => (
           <p key={p.socketId} className="mt-1 text-xs text-bad">
-            Translation for {p.name} stopped: {translations[p.socketId]?.error}
+            Translating your voice for {p.name} stopped: {translations[p.socketId]?.error}
           </p>
         ))}
       </section>
@@ -507,8 +526,8 @@ export default function MeetingRoom() {
           {cameraOff ? 'Camera on' : 'Camera off'}
         </Button>
         {listening && (
-          <label className="flex items-center gap-2 text-sm whitespace-nowrap" title="Billed per minute while on">
-            <input type="checkbox" checked={translateOn} onChange={(e) => setTranslateOn(e.target.checked)} className="w-auto" />
+          <label className="flex items-center gap-2 text-sm whitespace-nowrap" title="Off: hear their own voice">
+            <input type="checkbox" checked={translateOn} onChange={(e) => changeTranslateOn(e.target.checked)} className="w-auto" />
             Translate to {LANGUAGES[lang]}
           </label>
         )}
@@ -527,6 +546,16 @@ function timingNote(timing: { voiceMs?: number; spokeMs?: number }): string {
   const seconds = (ms: number) => (ms / 1000).toFixed(1);
   const spoke = timing.spokeMs ? `spoke ${seconds(timing.spokeMs)} s · ` : '';
   return `${spoke}voice ${seconds(timing.voiceMs ?? 0)} s after the pause`;
+}
+
+// A track from OpenAI only keeps flowing -- and so can be passed on to the
+// listener -- while something plays it. A muted <audio> does, without me
+// hearing my own translation.
+function keepFlowing(stream: MediaStream) {
+  const audio = new Audio();
+  audio.muted = true;
+  audio.srcObject = stream;
+  void audio.play().catch(() => {});
 }
 
 function LanguageSelect({ value, onChange, className }: { value: string; onChange: (lang: string) => void; className?: string }) {

@@ -18,21 +18,26 @@ translator, a text-to-speech voice) and waits for each sentence to end.
 
 ```mermaid
 flowchart LR
-    R["Ravi's browser<br/>(speaks Hindi)"] <-->|"video + voice<br/>(WebRTC, direct)"| A["Anna's browser<br/>(listens in English)"]
-    A -->|"Ravi's voice"| O["OpenAI<br/>GPT-Realtime-2 or<br/>GPT-Realtime-Translate"]
-    O -->|"English voice + captions"| A
-    A -.->|"asks for a short-lived key"| S["Our server<br/>(NestJS)"]
-    R -.->|"join, connection details"| S
+    R["Ravi's browser<br/>(speaks Hindi)"] -->|"his own mic"| O["OpenAI<br/>GPT-Realtime-2 or<br/>GPT-Realtime-Translate"]
+    O -->|"English voice + captions"| R
+    R <-->|"video + the English voice<br/>(WebRTC call)"| A["Anna's browser<br/>(listens in English)"]
+    R -.->|"short-lived key;<br/>captions for Anna"| S["Our server<br/>(NestJS)"]
+    S -.->|"captions"| A
 ```
 
 1. **Video call:** one-to-one -- a Hindi/Telugu speaker and an English
    listener. The browsers connect straight to each other (WebRTC); the
    server only introduces them (Socket.IO) and keeps the list of who is in
    which meeting, in memory.
-2. **Translation:** an English listener's browser opens a second WebRTC
-   connection, to OpenAI, and sends it the Hindi/Telugu speaker's voice as
-   received on the call. English speech comes back as an audio track and
-   the captions on a data channel.
+2. **Translation, on the speaker's side:** the speaker's browser sends its
+   own mic to OpenAI over a second WebRTC connection, and the translated
+   voice that comes back *replaces* the speaker's voice in what the
+   listener receives (the call's audio track is swapped; no reconnecting).
+   Captions go to the listener through our server.
+   It started the other way round -- the listener's browser translated the
+   voice it received -- but that voice had first crossed the call
+   connection, often through a slow relay, which made real calls much
+   slower than Meet Translate; and its pauses were harder to find.
 3. **The API key stays on the server.** The browser asks our server for a
    short-lived key that works for one translation session only. For
    GPT-Realtime-2, the server also sets the interpreter prompt
@@ -137,7 +142,7 @@ A first live call (two people, two networks) found two more:
 - **The next sentence cut off the translation still playing.** OpenAI's own
   pause detection clears whatever is playing the moment it hears the
   speaker start again -- even with its "don't interrupt" setting on. So it's
-  switched off: the listener's browser finds the pauses itself (a loudness
+  switched off: the browser finds the pauses itself (a loudness
   check, [pause-detector.ts](frontend/src/lib/pause-detector.ts)), tells
   OpenAI when a sentence is finished, and asks for the next translation only
   once the last one has been fully *heard*, not just made.

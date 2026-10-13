@@ -14,8 +14,8 @@ export class CreateMeetingDto {
 
 export class TranslationSessionDto {
   @IsString()
-  socketId: string; // the English listener asking
+  socketId: string; // the speaker asking: their own voice gets translated
 
   @IsString()
-  speakerSocketId: string; // the Hindi/Telugu speaker to translate
+  listenerSocketId: string; // who it's translated for (sets the language)
 }

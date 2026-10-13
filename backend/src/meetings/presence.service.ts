@@ -6,6 +6,9 @@ export interface Peer {
   socketId: string;
   name: string;
   lang: string;
+  // Whether they want to hear others translated (their "Translate to ..."
+  // switch). The speakers' browsers read it to know whether to translate.
+  translateOn?: boolean;
 }
 
 // Who is on each call right now, in memory. Nothing is kept once people
@@ -37,5 +40,10 @@ export class PresenceService {
   setLang(meetingCode: string, socketId: string, lang: string): void {
     const peer = this.get(meetingCode, socketId);
     if (peer) peer.lang = lang;
+  }
+
+  setTranslateOn(meetingCode: string, socketId: string, on: boolean): void {
+    const peer = this.get(meetingCode, socketId);
+    if (peer) peer.translateOn = on;
   }
 }

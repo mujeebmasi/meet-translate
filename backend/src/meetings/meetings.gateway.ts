@@ -81,6 +81,7 @@ export class MeetingsGateway implements OnGatewayDisconnect {
           .trim()
           .slice(0, 40) || 'Guest',
       lang: LANGUAGES[body.lang] ? body.lang : TARGET_LANG,
+      translateOn: true,
     };
     void client.join(body.code); // socket.io "room", for broadcasting to the call
     (client.data as { code?: string }).code = body.code;
@@ -123,36 +124,64 @@ export class MeetingsGateway implements OnGatewayDisconnect {
       .emit('peer-updated', { peer: this.presence.get(code, client.id) });
   }
 
-  // Each finished caption line, from the English listener's browser, is
-  // written to the server log: what was said and what it became. Handy for
-  // checking a test call afterwards. Nothing is stored.
+  // A listener switched "Translate to ..." on or off. The speakers' browsers
+  // do the translating, so they're told, like with a language change.
+  @SubscribeMessage('set-translate')
+  handleSetTranslate(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() body: { on: boolean },
+  ): void {
+    const code = meetingCodeOf(client);
+    if (!code) return;
+    this.presence.setTranslateOn(code, client.id, body?.on !== false);
+    this.server
+      .to(code)
+      .emit('peer-updated', { peer: this.presence.get(code, client.id) });
+  }
+
+  // A caption line from a speaker's browser, which translates its own
+  // voice: passed on to the listener it's for (again each time it grows).
+  // Finished lines are also written to the server log -- what was said,
+  // what it became, what it cost, how fast it was. Nothing is stored.
   @SubscribeMessage('caption')
   handleCaption(
     @ConnectedSocket() client: Socket,
     @MessageBody()
     body: {
-      speaker: string;
+      listener: string;
+      id: string;
       original: string;
       english: string;
+      done: boolean;
       usage?: RealtimeUsage; // gpt-realtime-2 only: OpenAI's token counts
       // gpt-realtime-2 only: ms after the speaker's pause was noticed that
-      // the English text / voice started.
-      timing?: { textMs?: number; voiceMs?: number };
+      // the translated text / voice started, and how long they spoke.
+      timing?: { textMs?: number; voiceMs?: number; spokeMs?: number };
     },
   ): void {
     const code = meetingCodeOf(client);
-    const speaker = code && this.presence.get(code, body?.speaker);
-    if (!speaker) return;
+    const speaker = code && this.presence.get(code, client.id);
+    const listener = code && this.presence.get(code, body?.listener);
+    if (!speaker || !listener) return;
     const said = String(body.original ?? '').slice(0, 500);
     const english = String(body.english ?? '').slice(0, 500);
+    this.server.to(listener.socketId).emit('caption', {
+      id: `${speaker.socketId}:${String(body.id).slice(0, 60)}`,
+      name: speaker.name,
+      original: said,
+      english,
+      done: body.done === true,
+      timing: body.timing,
+    });
+    if (body.done !== true) return;
+
     const cost = body.usage
       ? `  (~$${estimateCostUsd(body.usage).toFixed(4)})`
       : '';
     const seconds = (ms?: number) =>
       typeof ms === 'number' ? `${(ms / 1000).toFixed(2)}s` : '?';
     const timing = body.timing
-      ? `
-    After the pause: text ${seconds(body.timing.textMs)}, voice ${seconds(body.timing.voiceMs)}`
+      ? `\n    After the pause: text ${seconds(body.timing.textMs)}, voice ${seconds(body.timing.voiceMs)}`
       : '';
     this.logger.log(`${speaker.name} said: ${said}
     Translation: ${english}${cost}${timing}`);

@@ -37,19 +37,22 @@ export class MeetingsController {
     return this.meetings.find(code);
   }
 
-  // A listener's browser asks for this for each speaker it wants to hear in
-  // its own language, then connects to OpenAI itself with the short-lived
-  // secret it gets back (see OpenAiService for why). Only for two people on
-  // this call, in a direction this meeting's model can translate --
-  // otherwise anyone could use this server to translate on our bill.
+  // A speaker's browser asks for this to have its own voice translated for
+  // a listener, then connects to OpenAI itself with the short-lived secret
+  // it gets back (see OpenAiService for why). The speaker translates, not
+  // the listener: their own mic is clean, and doesn't first have to cross
+  // the call's (sometimes slow, relayed) connection -- which made a real
+  // call much slower. Only for two people on this call, in a direction
+  // this meeting's model can translate -- otherwise anyone could use this
+  // server to translate on our bill.
   @Post(':code/translation-session')
   translationSession(
     @Param('code') code: string,
     @Body() dto: TranslationSessionDto,
   ) {
     const meeting = this.meetings.find(code);
-    const listener = this.presence.get(code, dto.socketId);
-    const speaker = this.presence.get(code, dto.speakerSocketId);
+    const speaker = this.presence.get(code, dto.socketId);
+    const listener = this.presence.get(code, dto.listenerSocketId);
     if (
       !listener ||
       !speaker ||
@@ -62,7 +65,7 @@ export class MeetingsController {
       meeting.translator,
       speaker.lang,
       listener.lang,
-      `${code}:${listener.socketId}`,
+      `${code}:${speaker.socketId}`,
     );
   }
 }

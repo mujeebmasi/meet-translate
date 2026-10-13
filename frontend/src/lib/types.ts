@@ -10,6 +10,7 @@ export interface Peer {
   socketId: string;
   name: string;
   lang: string;
+  translateOn?: boolean; // their "Translate to ..." switch (on unless said otherwise)
 }
 
 // Same three as the backend's languages.ts. OpenAI's translator accepts

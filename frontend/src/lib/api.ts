@@ -38,16 +38,16 @@ export const api = {
 
   getMeeting: (code: string): Promise<Meeting> => request(`/meetings/${code}`),
 
-  // A short-lived key for one OpenAI translation session (the real API key
-  // stays on the server). `socketId` proves I'm on this call; the speaker's
-  // tells the server which language to set the translator up for.
+  // A short-lived key for one OpenAI session translating MY voice (the real
+  // API key stays on the server). `socketId` proves I'm on this call; the
+  // listener's tells the server which language to translate into.
   startTranslation: (
     code: string,
     socketId: string,
-    speakerSocketId: string,
+    listenerSocketId: string,
   ): Promise<{ translator: string; clientSecret: string }> =>
     request(`/meetings/${code}/translation-session`, {
       method: 'POST',
-      body: JSON.stringify({ socketId, speakerSocketId }),
+      body: JSON.stringify({ socketId, listenerSocketId }),
     }),
 };
