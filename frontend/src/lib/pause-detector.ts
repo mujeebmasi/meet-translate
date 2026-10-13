@@ -35,8 +35,8 @@ export function watchForPauses(
   // and again on any click or key press.
   const wakeUp = () => void audio.resume();
   wakeUp();
-  window.addEventListener("pointerdown", wakeUp);
-  window.addEventListener("keydown", wakeUp);
+  window.addEventListener('pointerdown', wakeUp);
+  window.addEventListener('keydown', wakeUp);
 
   const analyser = audio.createAnalyser();
   analyser.fftSize = 2048;
@@ -95,8 +95,8 @@ export function watchForPauses(
   return {
     stop: () => {
       clearInterval(timer);
-      window.removeEventListener("pointerdown", wakeUp);
-      window.removeEventListener("keydown", wakeUp);
+      window.removeEventListener('pointerdown', wakeUp);
+      window.removeEventListener('keydown', wakeUp);
       void audio.close();
     },
   };
