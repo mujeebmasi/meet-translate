@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { io, type Socket } from 'socket.io-client';
 import { api, errorMessage, WS_URL } from '@/lib/api';
-import { LANGUAGES, TARGET_LANG, type Peer } from '@/lib/types';
+import { LANGUAGES, TRANSLATORS, canTranslate, type Peer } from '@/lib/types';
 import { startTranslator, type CaptionLine } from '@/lib/translator';
 import { Button, Card, ErrorText, Label } from '@/components/ui';
 import { VideoTile } from '@/components/video-tile';
@@ -32,6 +32,7 @@ export default function MeetingRoom() {
 
   // --- lobby ---
   const [meetingTitle, setMeetingTitle] = useState('');
+  const [translator, setTranslator] = useState(''); // which OpenAI model, see TRANSLATORS
   const [notFound, setNotFound] = useState(false);
   const [name, setName] = useState(() => (typeof window === 'undefined' ? '' : localStorage.getItem('omt:name') || ''));
   const [lang, setLang] = useState(() => (typeof window === 'undefined' ? 'en' : localStorage.getItem('omt:lang') || 'en'));
@@ -61,7 +62,10 @@ export default function MeetingRoom() {
   useEffect(() => {
     api
       .getMeeting(code)
-      .then((meeting) => setMeetingTitle(meeting.title))
+      .then((meeting) => {
+        setMeetingTitle(meeting.title);
+        setTranslator(meeting.translator);
+      })
       .catch(() => setNotFound(true));
   }, [code]);
 
@@ -198,8 +202,10 @@ export default function MeetingRoom() {
   // ---------- translation (OpenAI) ----------
 
   // Whether I hear this person through the translator.
+  // Everyone hears the others in their own "I speak" language, where this
+  // meeting's model can do that direction.
   function isTranslatedForMe(peer: Peer) {
-    return translateOn && lang === TARGET_LANG && peer.lang !== TARGET_LANG;
+    return translateOn && canTranslate(peer.lang, lang, translator);
   }
 
   async function startTranslation(peer: RemotePeer) {
@@ -219,17 +225,23 @@ export default function MeetingRoom() {
     });
 
     try {
-      const { clientSecret } = await api.startTranslation(code, mySocketIdRef.current);
+      const session = await api.startTranslation(code, mySocketIdRef.current, peer.socketId);
       if (stopped) return;
-      translator = await startTranslator({
+      translator = await startTranslator(session.translator, {
         source,
-        clientSecret,
+        clientSecret: session.clientSecret,
         onAudio: (english) => update({ english, error: undefined }),
         onLine: (line) => {
           upsertCaption({ ...line, name: peer.name });
           // Finished lines also go to the server's log (see handleCaption).
           if (line.done)
-            socketRef.current?.emit('caption', { speaker: peer.socketId, original: line.original, english: line.english });
+            socketRef.current?.emit('caption', {
+              speaker: peer.socketId,
+              original: line.original,
+              english: line.english,
+              usage: line.usage,
+              timing: line.timing,
+            });
         },
         onError: (error) => update({ error }),
       });
@@ -268,9 +280,9 @@ export default function MeetingRoom() {
     for (const peer of wanted) {
       if (!translatorsRef.current.has(peer.socketId)) void startTranslation(peer);
     }
-    // isTranslatedForMe only reads translateOn and lang, listed here.
+    // isTranslatedForMe only reads translateOn, lang and translator, listed here.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [joined, peers, lang, translateOn]);
+  }, [joined, peers, lang, translateOn, translator]);
 
   // Keep the captions scrolled to the newest line.
   const captionBoxRef = useRef<HTMLDivElement>(null);
@@ -354,7 +366,10 @@ export default function MeetingRoom() {
               <Label>The language you will speak</Label>
               <LanguageSelect value={lang} onChange={setLang} />
               <p className="mt-1 text-xs text-muted">
-                Pick English to hear Hindi and Telugu speakers in English. Pick Hindi or Telugu if you will speak it.
+                You hear the others in this language.{' '}
+                {translator === 'gpt-realtime-2'
+                  ? 'Hindi and Telugu speakers are translated into English, and into each other.'
+                  : 'Hindi and Telugu speakers are translated into English.'}
               </p>
             </div>
             <Button type="submit" disabled={joining || !meetingTitle}>
@@ -367,13 +382,20 @@ export default function MeetingRoom() {
     );
   }
 
-  const listening = lang === TARGET_LANG;
+  // Whether anyone here is (or could be) translated for me: decides whether
+  // the captions box and the translate switch mean anything to me.
+  const listening = peers.some((p) => canTranslate(p.lang, lang, translator)) || lang === 'en';
   const errors = peers.filter((p) => isTranslatedForMe(p) && translations[p.socketId]?.error);
 
   return (
     <main className="flex h-screen flex-col">
       <header className="flex flex-wrap items-center gap-3 border-b border-line bg-surface px-4 py-3">
         <strong className="min-w-0 truncate">{meetingTitle}</strong>
+        {translator && (
+          <span className="rounded-full bg-brand-soft px-2.5 py-0.5 text-xs text-brand">
+            {TRANSLATORS[translator]?.name ?? translator}
+          </span>
+        )}
         <Button variant="quiet" className="text-xs" onClick={copyInviteLink}>
           {copied ? 'Copied!' : 'Copy invite link'}
         </Button>
@@ -402,7 +424,7 @@ export default function MeetingRoom() {
               volume={translated ? ORIGINAL_VOLUME_UNDER_TRANSLATION : 1}
               english={isTranslatedForMe(p) ? translations[p.socketId]?.english : null}
               name={p.name}
-              label={`${p.name} · ${LANGUAGES[p.lang] ?? p.lang}${translated ? ' → English' : ''}`}
+              label={`${p.name} · ${LANGUAGES[p.lang] ?? p.lang}${translated ? ` → ${LANGUAGES[lang]}` : ''}`}
               notice={p.link === 'failed' ? "Can't connect on this network." : undefined}
             />
           );
@@ -421,11 +443,11 @@ export default function MeetingRoom() {
         <div ref={captionBoxRef} className="h-36 overflow-y-auto">
           {!listening && (
             <p className="py-1 text-sm text-muted">
-              Speak {LANGUAGES[lang]}. People listening in English hear you translated as you talk.
+              Speak {LANGUAGES[lang]}. The others hear you translated into their language.
             </p>
           )}
           {listening && captions.length === 0 && (
-            <p className="py-1 text-sm text-muted">English captions appear here when a Hindi or Telugu speaker talks.</p>
+            <p className="py-1 text-sm text-muted">Translated captions appear here when someone speaks.</p>
           )}
           {listening &&
             captions.map((c) => (
@@ -453,7 +475,7 @@ export default function MeetingRoom() {
         {listening && (
           <label className="flex items-center gap-2 text-sm whitespace-nowrap" title="Billed per minute while on">
             <input type="checkbox" checked={translateOn} onChange={(e) => setTranslateOn(e.target.checked)} className="w-auto" />
-            Translate to English
+            Translate to {LANGUAGES[lang]}
           </label>
         )}
         <Button variant="danger" className="ml-auto" onClick={leave}>

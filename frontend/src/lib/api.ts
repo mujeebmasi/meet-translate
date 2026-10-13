@@ -26,16 +26,21 @@ export function errorMessage(error: unknown): string {
 }
 
 export const api = {
-  createMeeting: (title: string): Promise<Meeting> =>
-    request('/meetings', { method: 'POST', body: JSON.stringify({ title }) }),
+  createMeeting: (title: string, translator: string): Promise<Meeting> =>
+    request('/meetings', { method: 'POST', body: JSON.stringify({ title, translator }) }),
 
   getMeeting: (code: string): Promise<Meeting> => request(`/meetings/${code}`),
 
   // A short-lived key for one OpenAI translation session (the real API key
-  // stays on the server). `socketId` proves I'm on this call.
-  startTranslation: (code: string, socketId: string): Promise<{ clientSecret: string }> =>
+  // stays on the server). `socketId` proves I'm on this call; the speaker's
+  // tells the server which language to set the translator up for.
+  startTranslation: (
+    code: string,
+    socketId: string,
+    speakerSocketId: string,
+  ): Promise<{ translator: string; clientSecret: string }> =>
     request(`/meetings/${code}/translation-session`, {
       method: 'POST',
-      body: JSON.stringify({ socketId }),
+      body: JSON.stringify({ socketId, speakerSocketId }),
     }),
 };

@@ -1,18 +1,25 @@
-import { LANGUAGES, needsTranslation } from './languages';
+import { LANGUAGES, canTranslate } from './languages';
 
-describe('needsTranslation', () => {
-  it('translates a Hindi or Telugu speaker for an English listener', () => {
-    expect(needsTranslation('hi', 'en')).toBe(true);
-    expect(needsTranslation('te', 'en')).toBe(true);
+describe('canTranslate', () => {
+  it('translates Hindi and Telugu into English with either model', () => {
+    for (const model of ['gpt-realtime-2', 'gpt-realtime-translate']) {
+      expect(canTranslate('hi', 'en', model)).toBe(true);
+      expect(canTranslate('te', 'en', model)).toBe(true);
+    }
   });
 
-  it('never translates an English speaker, or for a non-English listener', () => {
-    expect(needsTranslation('en', 'en')).toBe(false);
-    expect(needsTranslation('en', 'hi')).toBe(false);
-    expect(needsTranslation('te', 'hi')).toBe(false);
+  it('translates between Hindi and Telugu with gpt-realtime-2 only', () => {
+    expect(canTranslate('hi', 'te', 'gpt-realtime-2')).toBe(true);
+    expect(canTranslate('te', 'hi', 'gpt-realtime-2')).toBe(true);
+    expect(canTranslate('hi', 'te', 'gpt-realtime-translate')).toBe(false);
   });
 
-  it('offers only languages the OpenAI translator accepts', () => {
+  it('never translates a language into itself, or English out', () => {
+    expect(canTranslate('hi', 'hi', 'gpt-realtime-2')).toBe(false);
+    expect(canTranslate('en', 'hi', 'gpt-realtime-2')).toBe(false);
+  });
+
+  it('offers only languages the OpenAI models accept', () => {
     expect(Object.keys(LANGUAGES)).toEqual(['en', 'hi', 'te']);
   });
 });

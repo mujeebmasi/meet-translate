@@ -12,6 +12,7 @@ import { LANGUAGES, TARGET_LANG } from '../languages';
 import { MeetingsService, type Meeting } from './meetings.service';
 import { PresenceService } from './presence.service';
 import { iceServers } from './ice-servers';
+import { estimateCostUsd, type RealtimeUsage } from '../openai/cost';
 
 // Video and audio go straight between browsers (WebRTC). Before they can,
 // the browsers must swap connection details, and this gateway is the
@@ -88,6 +89,7 @@ export class MeetingsGateway implements OnGatewayDisconnect {
     client.emit('welcome', {
       you: client.id,
       title: meeting.title,
+      translator: meeting.translator,
       peers: others,
       iceServers: iceServers(),
     });
@@ -127,15 +129,33 @@ export class MeetingsGateway implements OnGatewayDisconnect {
   @SubscribeMessage('caption')
   handleCaption(
     @ConnectedSocket() client: Socket,
-    @MessageBody() body: { speaker: string; original: string; english: string },
+    @MessageBody()
+    body: {
+      speaker: string;
+      original: string;
+      english: string;
+      usage?: RealtimeUsage; // gpt-realtime-2 only: OpenAI's token counts
+      // gpt-realtime-2 only: ms after the speaker's pause was noticed that
+      // the English text / voice started.
+      timing?: { textMs?: number; voiceMs?: number };
+    },
   ): void {
     const code = meetingCodeOf(client);
     const speaker = code && this.presence.get(code, body?.speaker);
     if (!speaker) return;
     const said = String(body.original ?? '').slice(0, 500);
     const english = String(body.english ?? '').slice(0, 500);
+    const cost = body.usage
+      ? `  (~$${estimateCostUsd(body.usage).toFixed(4)})`
+      : '';
+    const seconds = (ms?: number) =>
+      typeof ms === 'number' ? `${(ms / 1000).toFixed(2)}s` : '?';
+    const timing = body.timing
+      ? `
+    After the pause: text ${seconds(body.timing.textMs)}, voice ${seconds(body.timing.voiceMs)}`
+      : '';
     this.logger.log(`${speaker.name} said: ${said}
-    English: ${english}`);
+    English: ${english}${cost}${timing}`);
   }
 
   handleDisconnect(client: Socket): void {
