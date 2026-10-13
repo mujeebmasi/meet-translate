@@ -81,6 +81,7 @@ describe('OpenAiService', () => {
     // OpenAI's pause detection is off (it cut off translations still
     // playing); the browser finds pauses and asks for each reply itself.
     expect(session.audio.input.turn_detection).toBeNull();
+    expect(session.audio.output.speed).toBe(1.2); // quicker voice, less lag
   });
 
   it('sets gpt-realtime-2 up to translate Hindi into Telugu too', async () => {

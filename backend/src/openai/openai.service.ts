@@ -100,8 +100,10 @@ function realtime2Session(speakerLang: string, listenerLang: string) {
         // translation itself, one at a time (realtime2-session.ts).
         turn_detection: null,
       },
-      // A male voice (OpenAI's 'marin' is female).
-      output: { voice: 'cedar' },
+      // A male voice (OpenAI's 'marin' is female), speaking 1.2x faster:
+      // translations play one after another, so on a real call the lag
+      // behind the speaker kept growing; a quicker voice catches up.
+      output: { voice: 'cedar', speed: 1.2 },
     },
   };
 }
