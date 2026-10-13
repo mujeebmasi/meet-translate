@@ -21,10 +21,6 @@ const OPENAI_CALLS_URL = 'https://api.openai.com/v1/realtime/calls';
 // long after the translation is finished, show the line without waiting.
 const TRANSCRIPT_WAIT_MS = 3000;
 
-// How long to wait for a doubtful item's transcript (see shouldTranslate)
-// before translating it anyway.
-const FILLER_CHECK_MS = 600;
-
 // How many earlier translations each reply is shown, to understand what's
 // being talked about.
 const CONTEXT_LINES = 3;
@@ -60,9 +56,11 @@ export async function startRealtime2(options: TranslatorOptions): Promise<{ stop
   let replying = false;
   let replyWanted = false;
   // When OpenAI last noticed the speaker pause -- the clock for each line's
-  // timing. (It notices ~0.6s after they actually stop: that's the length
+  // timing. (It notices ~0.5s after they actually stop: that's the length
   // of quiet it waits for, set on the server.)
   let pauseNoticedAt = 0;
+  const spokeMs = new Map<string, number>(); // item id -> how long they talked
+  const speechStartMs = new Map<string, number>(); // item id -> start, in the call's audio time
   const startedAt = new Map<CaptionLine, number>();
 
   const show = (line: CaptionLine) => options.onLine({ ...line });
@@ -81,15 +79,14 @@ export async function startRealtime2(options: TranslatorOptions): Promise<{ stop
   const translationDone = new Set<CaptionLine>();
 
   // --- the filler check ---
-  // Usually the transcript has already streamed in by the pause and shows
-  // real words, so the item goes straight through. Only an item with no
-  // words yet, or only filler so far, waits for its finished transcript
-  // (at most FILLER_CHECK_MS; if it's late, translate rather than lose it).
+  // Translate straight away, unless the transcript has already come in and
+  // is only a filler. Waiting for it to arrive cost up to 0.6s a sentence;
+  // a filler that slips through costs little now, because each reply sees
+  // only the new speech (and the prompt says to stay silent on fillers).
   function check(id: string) {
     checking.push({ id });
     const soFar = spoken.get(id)?.text ?? '';
-    if (soFar && !isFiller(soFar)) decide(id, 'translate');
-    else setTimeout(() => decide(id, 'translate'), FILLER_CHECK_MS);
+    decide(id, soFar && isFiller(soFar) ? 'skip' : 'translate');
   }
   function decide(id: string, verdict: 'translate' | 'skip') {
     const entry = checking.find((c) => c.id === id);
@@ -107,6 +104,11 @@ export async function startRealtime2(options: TranslatorOptions): Promise<{ stop
     switch (event.type) {
       case 'input_audio_buffer.speech_stopped':
         pauseNoticedAt = Date.now();
+        spokeMs.set(event.item_id, event.audio_end_ms - (speechStartMs.get(event.item_id) ?? event.audio_end_ms));
+        break;
+
+      case 'input_audio_buffer.speech_started':
+        speechStartMs.set(event.item_id, event.audio_start_ms);
         break;
 
       // A pause: everything since the last pause is now one item.
@@ -119,6 +121,7 @@ export async function startRealtime2(options: TranslatorOptions): Promise<{ stop
         lines.set(event.response.id, line);
         startedAt.set(line, pauseNoticedAt);
         itemsOf.set(line, itemsBeingTranslated);
+        line.timing = { spokeMs: itemsBeingTranslated.reduce((sum, id) => sum + (spokeMs.get(id) ?? 0), 0) };
         refreshOriginal(line);
         break;
       }

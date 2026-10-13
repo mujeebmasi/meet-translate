@@ -96,7 +96,9 @@ function realtime2Session(speakerLang: string, listenerLang: string) {
         noise_reduction: { type: 'far_field' },
         turn_detection: {
           type: 'server_vad',
-          silence_duration_ms: 600, // this much quiet ends a sentence
+          // This much quiet ends a sentence. Shorter = faster replies, but a
+          // mid-sentence breath may split it in two (each half still translated).
+          silence_duration_ms: 500,
           // Replies are started by the browser instead (one at a time, see
           // realtime2-session.ts), so a new sentence never cuts off the
           // English of the one before.

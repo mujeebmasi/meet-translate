@@ -12,7 +12,9 @@ export interface CaptionLine {
   usage?: unknown; // gpt-realtime-2 only: OpenAI's token counts for this line
   // gpt-realtime-2 only: how long after the speaker's pause was noticed the
   // English text, and then the English voice, started (milliseconds).
-  timing?: { textMs?: number; voiceMs?: number };
+  // spokeMs: how long the speaker talked before pausing, so the wait can be
+  // told apart from the translator's own speed.
+  timing?: { textMs?: number; voiceMs?: number; spokeMs?: number };
 }
 
 export interface TranslatorOptions {

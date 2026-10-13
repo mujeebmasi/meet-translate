@@ -450,13 +450,19 @@ export default function MeetingRoom() {
             <p className="py-1 text-sm text-muted">Translated captions appear here when someone speaks.</p>
           )}
           {listening &&
-            captions.map((c) => (
-              <div key={c.id} className="py-1">
-                <b className="text-brand">{c.name}</b> {c.english}
-                {!c.done && <span className="text-muted"> ...</span>}
-                {c.original && <small className="block text-muted">{c.original}</small>}
-              </div>
-            ))}
+            captions
+              // A reply to a filler sound ("um") can come back empty: hide it.
+              .filter((c) => !c.done || c.english.trim())
+              .map((c) => (
+                <div key={c.id} className="py-1">
+                  <b className="text-brand">{c.name}</b> {c.english}
+                  {!c.done && <span className="text-muted"> ...</span>}
+                  {c.original && <small className="block text-muted">{c.original}</small>}
+                  {c.timing?.voiceMs !== undefined && (
+                    <small className="block text-xs text-muted">{timingNote(c.timing)}</small>
+                  )}
+                </div>
+              ))}
         </div>
         {errors.map((p) => (
           <p key={p.socketId} className="mt-1 text-xs text-bad">
@@ -484,6 +490,15 @@ export default function MeetingRoom() {
       </footer>
     </main>
   );
+}
+
+// Under each caption: how long they talked, and how fast the translated
+// voice followed. Shows whether a long wait was the speaker's own sentence
+// or the translator. ("pause" = the 0.5s of quiet that ends a sentence.)
+function timingNote(timing: { voiceMs?: number; spokeMs?: number }): string {
+  const seconds = (ms: number) => (ms / 1000).toFixed(1);
+  const spoke = timing.spokeMs ? `spoke ${seconds(timing.spokeMs)} s · ` : '';
+  return `${spoke}voice ${seconds(timing.voiceMs ?? 0)} s after the pause`;
 }
 
 function LanguageSelect({ value, onChange, className }: { value: string; onChange: (lang: string) => void; className?: string }) {
