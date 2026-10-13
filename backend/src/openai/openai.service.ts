@@ -94,17 +94,11 @@ function realtime2Session(speakerLang: string, listenerLang: string) {
         // script.
         transcription: { model: 'gpt-realtime-whisper', language: speakerLang },
         noise_reduction: { type: 'far_field' },
-        turn_detection: {
-          type: 'server_vad',
-          // This much quiet ends a sentence. Shorter = faster replies, but a
-          // mid-sentence breath may split it in two (each half still translated).
-          silence_duration_ms: 500,
-          // Replies are started by the browser instead (one at a time, see
-          // realtime2-session.ts), so a new sentence never cuts off the
-          // English of the one before.
-          create_response: false,
-          interrupt_response: false,
-        },
+        // OpenAI's own pause detection is off: whenever it heard the speaker
+        // start again, it cut off the translation still playing. The browser
+        // finds the pauses instead (pause-detector.ts) and asks for each
+        // translation itself, one at a time (realtime2-session.ts).
+        turn_detection: null,
       },
       // A male voice (OpenAI's 'marin' is female).
       output: { voice: 'cedar' },

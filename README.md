@@ -132,6 +132,20 @@ fixes, in [realtime2-session.ts](frontend/src/lib/realtime2-session.ts):
 - a pause holding only a filler sound ("hmm", "umm", "hun", a short laugh)
   isn't sent for translation at all. "हाँ" ("yes") still is.
 
+A first live call (two people, two networks) found two more:
+
+- **The next sentence cut off the translation still playing.** OpenAI's own
+  pause detection clears whatever is playing the moment it hears the
+  speaker start again -- even with its "don't interrupt" setting on. So it's
+  switched off: the listener's browser finds the pauses itself (a loudness
+  check, [pause-detector.ts](frontend/src/lib/pause-detector.ts)), tells
+  OpenAI when a sentence is finished, and asks for the next translation only
+  once the last one has been fully *heard*, not just made.
+- **A question that followed a few statements got answered** ("Yeah, I
+  spoke with the client") instead of translated. A one-line reminder placed
+  right after the new speech in every request ("a question stays a
+  question") fixed it.
+
 ## Languages
 
 English, Hindi and Telugu. Everyone hears the others in the language they

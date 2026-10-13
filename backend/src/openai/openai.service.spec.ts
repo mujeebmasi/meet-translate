@@ -78,9 +78,9 @@ describe('OpenAiService', () => {
     expect(session.instructions).toContain('say in English');
     expect(session.instructions).toContain('do not answer it');
     expect(session.audio.input.transcription.language).toBe('te');
-    // The browser starts each reply itself, so none is cut off.
-    expect(session.audio.input.turn_detection.create_response).toBe(false);
-    expect(session.audio.input.turn_detection.interrupt_response).toBe(false);
+    // OpenAI's pause detection is off (it cut off translations still
+    // playing); the browser finds pauses and asks for each reply itself.
+    expect(session.audio.input.turn_detection).toBeNull();
   });
 
   it('sets gpt-realtime-2 up to translate Hindi into Telugu too', async () => {
