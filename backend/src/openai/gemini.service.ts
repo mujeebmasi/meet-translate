@@ -15,10 +15,9 @@ export class GeminiService {
     return !!process.env.GEMINI_API_KEY;
   }
 
-  // `speakerLang` is the language the speaker picked ("I speak"),
-  // `listenerLang` the one they're translated into.
+  // `listenerLang` is the language the speaker is translated into. The
+  // speaker's own language isn't needed: the model detects it.
   async createSession(
-    speakerLang: string,
     listenerLang: string,
   ): Promise<{ translator: string; clientSecret: string; expiresAt: number }> {
     if (!this.isConfigured())
@@ -50,12 +49,7 @@ export class GeminiService {
             // talks the listener's language, say nothing.
             translationConfig: { targetLanguageCode: listenerLang },
           },
-          // The speaker's words as text, with their language as a hint.
-          // Gemini detects the language itself, and in a real call it took
-          // accented Telugu for English or Marathi. The hint is gentle, not
-          // a lock: in a test, clear Hindi with a wrong hint was still heard
-          // as Hindi, and it made no difference to speed.
-          inputAudioTranscription: { languageCodes: [speakerLang] },
+          inputAudioTranscription: {}, // the speaker's words as text
           outputAudioTranscription: {}, // the translation as text
         },
       }),

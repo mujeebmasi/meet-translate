@@ -22,7 +22,6 @@ export interface CaptionLine {
 
 export interface TranslatorOptions {
   source: MediaStreamTrack; // the speaker's voice, as received on the call
-  language?: string; // the speaker's language ("I speak"); Gemini uses it as a hint
   clientSecret: string;
   onAudio: (english: MediaStream) => void;
   onLine: (line: CaptionLine) => void;
