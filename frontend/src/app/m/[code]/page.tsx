@@ -379,7 +379,7 @@ export default function MeetingRoom() {
 
   function leave() {
     hangUp();
-    router.push('/');
+    router.push('/start');
   }
 
   // Also hang up if the page goes away without the Leave button.
@@ -398,7 +398,7 @@ export default function MeetingRoom() {
           Check the link or code. Meetings also end when the server restarts (it does after ~15 idle minutes), so it may
           need creating again.
         </p>
-        <Link href="/" className="text-sm text-brand hover:underline">
+        <Link href="/start" className="text-sm text-brand hover:underline">
           Create a new meeting
         </Link>
       </main>

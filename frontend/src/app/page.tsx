@@ -1,115 +1,98 @@
 'use client';
 
-import { useEffect, useState, type FormEvent } from 'react';
-import { useRouter } from 'next/navigation';
-import { api, errorMessage } from '@/lib/api';
-import { TRANSLATORS } from '@/lib/types';
-import { Button, Card, ErrorText, Label } from '@/components/ui';
+import { useEffect } from 'react';
+import Link from 'next/link';
+import { api } from '@/lib/api';
+
+// The home page: what the app does, how fast and how well, and a button to
+// /start (create or join a call).
+
+// From our own test calls (see the README's Results section). Times count
+// from the moment the speaker stops talking.
+const STATS = [
+  { value: '~1 s', label: 'Caption appears', detail: 'after the speaker stops' },
+  { value: '~1.4 s', label: 'Translated voice starts', detail: 'after the speaker stops' },
+  { value: '₹0.3–0.5', label: 'Per sentence', detail: 'silence costs nothing' },
+  { value: '17 / 18', label: 'Lines right in real calls', detail: 'Hindi → English, Telugu → Hindi' },
+];
+
+const STEPS = [
+  { title: 'You speak', text: 'Your browser sends your own microphone straight to OpenAI.' },
+  {
+    title: 'It interprets each sentence',
+    text: 'GPT-Realtime-2 translates when you pause: it never answers for you, and keeps names and numbers exact.',
+  },
+  { title: 'They hear you in their language', text: 'The translated voice replaces yours on the call, with captions.' },
+];
+
+const DIRECTIONS = ['Hindi → English', 'Telugu → English', 'Hindi ↔ Telugu'];
 
 export default function HomePage() {
-  const router = useRouter();
-  const [title, setTitle] = useState('');
-  const [translator, setTranslator] = useState('gpt-realtime-2');
-  const [code, setCode] = useState('');
-  const [error, setError] = useState('');
-  const [creating, setCreating] = useState(false);
-  // A public server asks for an access code before creating a meeting (so
-  // a stranger with the link can't run up the OpenAI bill). Remembered in
-  // this browser after the first time.
-  const [needsCode, setNeedsCode] = useState(false);
-  const [serverReady, setServerReady] = useState(false);
-  const [accessCode, setAccessCode] = useState(() =>
-    typeof window === 'undefined' ? '' : localStorage.getItem('omt:access-code') || '',
-  );
-
-  // Also wakes the server up: on a free host it sleeps when unused, and the
-  // first request after that can take up to a minute.
+  // Start waking the free server (it sleeps when unused, and takes up to a
+  // minute to start) while the visitor reads, so the next page is ready.
   useEffect(() => {
-    api
-      .getConfig()
-      .then((config) => setNeedsCode(config.accessCodeRequired))
-      .catch((err) => setError(errorMessage(err)))
-      .finally(() => setServerReady(true));
+    api.getConfig().catch(() => {});
   }, []);
 
-  async function createMeeting(e: FormEvent) {
-    e.preventDefault();
-    setError('');
-    setCreating(true);
-    try {
-      const meeting = await api.createMeeting(title, translator, accessCode.trim());
-      localStorage.setItem('omt:access-code', accessCode.trim());
-      router.push(`/m/${meeting.code}`);
-    } catch (err) {
-      setError(errorMessage(err));
-      setCreating(false);
-    }
-  }
-
-  function joinMeeting(e: FormEvent) {
-    e.preventDefault();
-    // Accept either the bare code or the whole invite link.
-    const joinCode = code.trim().split('/').pop();
-    if (joinCode) router.push(`/m/${joinCode}`);
-  }
-
   return (
-    <main className="mx-auto flex min-h-screen max-w-md flex-col justify-center gap-4 px-4 py-12">
-      <h1 className="text-4xl font-semibold">
-        Meet <em className="text-brand not-italic">Translate</em>
-      </h1>
-      <p className="mb-4 text-muted">
-        Video calls where Hindi and Telugu speakers are heard in English, with live captions. Powered by OpenAI&apos;s
-        realtime voice models.
-      </p>
+    <main className="mx-auto flex min-h-screen max-w-4xl flex-col justify-center gap-10 px-4 py-14">
+      <section className="text-center">
+        <p className="mb-4 inline-block rounded-full border border-line bg-surface px-3 py-1 text-xs text-muted">
+          Live interpretation · powered by OpenAI GPT-Realtime-2
+        </p>
+        <h1 className="text-5xl font-semibold sm:text-6xl">
+          Meet <em className="text-brand not-italic">Translate</em>
+        </h1>
+        <p className="mx-auto mt-4 max-w-2xl text-lg text-muted">
+          Video calls where you speak your language and they hear theirs: a translated voice and live captions,
+          sentence by sentence.
+        </p>
+        <div className="mt-5 flex flex-wrap justify-center gap-2">
+          {DIRECTIONS.map((direction) => (
+            <span key={direction} className="rounded-full bg-brand-soft px-3 py-1 text-xs font-medium text-brand">
+              {direction}
+            </span>
+          ))}
+        </div>
+      </section>
 
-      <Card>
-        <form onSubmit={createMeeting} className="flex flex-col gap-3">
-          <div>
-            <Label>Meeting name</Label>
-            <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Interview with Priya" maxLength={80} />
+      <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        {STATS.map((stat) => (
+          <div key={stat.label} className="rounded-xl border border-line bg-surface p-5">
+            <p className="text-2xl font-semibold whitespace-nowrap text-body sm:text-3xl">{stat.value}</p>
+            <p className="mt-2 text-sm font-medium text-body">{stat.label}</p>
+            <p className="text-xs text-muted">{stat.detail}</p>
           </div>
-          <div>
-            <Label>Translator</Label>
-            <select value={translator} onChange={(e) => setTranslator(e.target.value)}>
-              {Object.entries(TRANSLATORS).map(([id, t]) => (
-                <option key={id} value={id}>
-                  {t.name}
-                </option>
-              ))}
-            </select>
-            <p className="mt-1 text-xs text-muted">{TRANSLATORS[translator].about}</p>
-          </div>
-          {needsCode && (
-            <div>
-              <Label>Access code</Label>
-              <input
-                value={accessCode}
-                onChange={(e) => setAccessCode(e.target.value)}
-                placeholder="Ask the owner of this site"
-                required
-              />
-            </div>
-          )}
-          <Button type="submit" disabled={creating || !serverReady}>
-            {!serverReady ? 'Waking the server up...' : creating ? 'Creating...' : 'Create meeting'}
-          </Button>
-        </form>
-      </Card>
+        ))}
+      </section>
 
-      <Card>
-        <form onSubmit={joinMeeting} className="flex flex-col gap-3">
-          <div>
-            <Label>Have a code or link?</Label>
-            <input value={code} onChange={(e) => setCode(e.target.value)} placeholder="Paste meeting code" required />
-          </div>
-          <Button type="submit" variant="quiet">
-            Join
-          </Button>
-        </form>
-      </Card>
+      <section>
+        <h2 className="mb-4 text-center text-sm font-semibold tracking-wide text-muted uppercase">How it works</h2>
+        <ol className="grid gap-4 md:grid-cols-3">
+          {STEPS.map((step, i) => (
+            <li key={step.title} className="rounded-xl border border-line bg-surface p-5">
+              <span className="flex size-8 items-center justify-center rounded-full bg-brand text-sm font-semibold text-white">
+                {i + 1}
+              </span>
+              <p className="mt-3 text-sm font-medium text-body">{step.title}</p>
+              <p className="mt-1 text-sm text-muted">{step.text}</p>
+            </li>
+          ))}
+        </ol>
+      </section>
 
-      {error && <ErrorText>{error}</ErrorText>}
+      <section className="flex flex-col items-center gap-3 text-center">
+        <Link
+          href="/start"
+          className="rounded-xl bg-brand px-8 py-3 text-base font-semibold text-white transition-colors hover:bg-brand-dark"
+        >
+          Let&apos;s Get Started →
+        </Link>
+        <p className="max-w-xl text-xs text-muted">
+          Numbers from our own test calls on laptop mics. The translator waits for the end of each sentence, so a
+          longer sentence means a longer wait before it starts.
+        </p>
+      </section>
     </main>
   );
 }
