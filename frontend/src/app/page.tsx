@@ -16,8 +16,10 @@ const MODEL_STATS = [
     model: 'Gemini 3.5 Live Translate',
     note: 'translates while you talk',
     stats: [
-      { value: '< 2 s', label: 'Behind the speaker', detail: 'in a real call, English → Telugu' },
-      { value: '~3.4 s', label: 'Translated voice starts', detail: 'after the speaker starts, before they finish' },
+      // Timing notes from real calls: 2.4-4.6 s after the speaker starts.
+      { value: '~3.5 s', label: 'Translated voice starts', detail: 'after the speaker starts, while they talk' },
+      // Natural speech in real calls, all directions together (see README).
+      { value: '30 / 37', label: 'Lines right in real calls', detail: 'natural speech, all directions' },
       { value: '~₹3', label: 'Per minute', detail: "Google's price, silence included" },
       { value: '6 / 6', label: 'Directions', detail: 'incl. into Telugu, which OpenAI can’t speak' },
     ],

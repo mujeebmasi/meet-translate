@@ -111,19 +111,32 @@ log with its cost and timing.
 
 **Gemini 3.5 Live Translate** (real calls, 14 Oct 2026):
 
-- **Real call, English → Telugu:** translations right, apart from one
-  phrase dropped ("in real time"); the voice ran **under ~2 s behind** the
-  speaker, translating while they talked.
-- **Recorded Hindi clip:** right into English ("How are you? Let's start
-  today's meeting.") and into Telugu; the translated voice started **~3.4 s
-  after the speaker started**, before the 3.9 s sentence had ended.
-- **Every direction on the live site:** Hindi, Telugu and English speakers,
-  each heard in the other two languages, all worked in real calls -- as did
-  the two OpenAI models in the directions they support.
-- **Cost:** Google's price is about **$0.037 a minute (~₹3)**, input and
-  output audio, silence included.
-- Not tested yet: long calls (Google doesn't document a session limit), and
-  a line-by-line accuracy count like the one for GPT-Realtime-2.
+- **Speed:** the translated voice starts **2.4–4.6 s after the speaker
+  starts talking (~3.5 s typical)**, measured by the timing note under each
+  caption -- so for a normal sentence, while they're still speaking. Most
+  of that is Gemini listening until it has enough of the sentence: sent
+  straight to Google, without our app, it took 2.3–3.6 s.
+- **Accuracy: 30 of 37 lines right** in real calls with natural speech:
+
+  | Call | Right |
+  |---|---|
+  | English → Telugu | 6/6 |
+  | English → Telugu (second call) | 3/4 |
+  | Natural Telugu ↔ Hindi conversation | 10/12 |
+  | Casual Hinglish → English | 5/9 |
+  | English → Hindi | 6/6 |
+
+  Typical misses: English words inside Hindi misheard ("Zepto" → "phone",
+  "delay" → "delete"), and a sentence-final "nahin" dropped, flipping the
+  meaning. Scripted, accented Telugu full of English words did much worse:
+  Gemini detects the speaker's language itself, and took it for English or
+  Marathi.
+- **Every direction works:** Hindi, Telugu and English speakers, each heard
+  in the other two languages -- as do the two OpenAI models in the
+  directions they support.
+- **Cost:** Google's price is about **$0.037 a minute (~₹3)** per translated
+  voice, input and output audio, silence included.
+- Not tested yet: long calls (Google doesn't document a session limit).
 
 ## Compared with Indic Fish Realtime Translate
 
@@ -153,7 +166,7 @@ it got **8 right, 2 partly, 3 wrong**, and real Telugu much worse:
 | | GPT-Realtime-Translate | GPT-Realtime-2 | Gemini 3.5 Live Translate |
 |---|---|---|---|
 | Translation starts | while the speaker is talking | after each sentence | while the speaker is talking |
-| Wrong guesses spoken aloud | yes: Hindi puts the verb and "kya" last, so it guesses early and corrects itself out loud | no | none seen yet |
+| Wrong guesses spoken aloud | yes: Hindi puts the verb and "kya" last, so it guesses early and corrects itself out loud | no | none heard, but it can drop a sentence-final "nahin" |
 | Takes instructions | no | yes | no |
 | Speaks Telugu (Hindi ↔ Telugu, English → Telugu) | no | yes | yes |
 | Connection | WebRTC | WebRTC | WebSocket, raw audio |
