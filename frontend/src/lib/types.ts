@@ -1,7 +1,7 @@
 export interface Meeting {
   code: string;
   title: string;
-  translator: string; // which OpenAI model translates, see TRANSLATORS
+  translator: string; // which model translates, see TRANSLATORS
 }
 
 // A person on the call, as the server announces them. Their socket id is
@@ -14,7 +14,7 @@ export interface Peer {
 }
 
 // Same three as the backend's languages.ts. OpenAI's models accept Hindi
-// and Telugu (not Tamil or Kannada).
+// and Telugu (not Tamil or Kannada), so the app offers just these.
 export const LANGUAGES: Record<string, string> = {
   en: 'English',
   hi: 'Hindi',

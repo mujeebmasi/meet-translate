@@ -7,8 +7,8 @@ import './globals.css';
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
 
 export const metadata: Metadata = {
-  title: 'Meet Translate (OpenAI)',
-  description: 'Video calls where Hindi and Telugu speakers are heard in English, live.',
+  title: 'Meet Translate',
+  description: 'Video calls in Hindi, Telugu and English where everyone hears the others in their own language, live.',
 };
 
 export default function RootLayout({ children }: LayoutProps<'/'>) {

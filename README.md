@@ -1,8 +1,12 @@
-# Meet Translate (OpenAI)
+# Meet Translate (OpenAI + Gemini)
 
-Video calls where a Hindi or Telugu speaker is heard in English, or in each
-other's language, with live captions. Translation is done by OpenAI's
-realtime voice models.
+Video calls in Hindi, Telugu and English where each person hears the other
+in their own language, with live captions. Translation is done by realtime
+voice models -- two from OpenAI and one from Google, picked per meeting, so
+they can be compared on real calls.
+
+It started as an OpenAI-only experiment (hence the repo name); Google's
+Gemini 3.5 Live Translate was added later and did best in our own tests.
 
 **Live:** https://openai-meet-translate.vercel.app (creating a meeting needs
 an access code; joining needs only the invite link)
@@ -10,34 +14,38 @@ an access code; joining needs only the invite link)
 A sibling of [Meet Translate](https://github.com/mujeebmasi/meeting-translate),
 which builds the same thing from separate parts (local speech-to-text, an LLM
 translator, a text-to-speech voice). This one hands all of that to a single
-OpenAI model -- and turned out to need a lot of work around it to behave in a
+model -- and turned out to need a lot of work around it to behave in a
 real call (see [Problems found in real calls](#problems-found-in-real-calls)).
 
 ## At a glance
 
 - **One-to-one video calls** (WebRTC), with a TURN relay for networks that
   block direct connections.
-- **Directions:** Hindi or Telugu → English, and Hindi ↔ Telugu. Everyone
-  hears the other person in the language they picked under "I speak".
-- **Two models**, picked per meeting:
+- **Directions:** all six between Hindi, Telugu and English. Everyone hears
+  the other person in the language they picked under "I speak".
+- **Three models**, picked per meeting:
   - **GPT-Realtime-2** (default): OpenAI's voice-assistant model, turned
     into an interpreter by our own prompt. Translates after each sentence.
+    All six directions.
   - **GPT-Realtime-Translate**: OpenAI's dedicated interpreter. Translates
     while the speaker is still talking, but takes no instructions, and can't
-    speak Telugu.
+    speak Telugu -- so only into English here.
+  - **Gemini 3.5 Live Translate**: Google's dedicated interpreter. Also
+    translates while the speaker talks and takes no instructions, but speaks
+    Telugu too: all six directions.
 - **Captions** for both sides: the listener sees the translation, the
   speaker sees how they were understood ("You → Telugu"). Under each line:
   how long they spoke and how fast the translated voice followed.
 - **Stack:** Next.js (frontend, on Vercel), NestJS + Socket.IO (backend, on
-  Render), OpenAI Realtime API over WebRTC. No database: meetings live in
-  memory.
+  Render), OpenAI Realtime API over WebRTC, Gemini Live API over WebSocket.
+  No database: meetings live in memory.
 
 ## The site
 
 | Page | What's on it |
 |---|---|
-| `/` | What the app does, the measured numbers (caption ~1 s and voice ~1.4 s after the speaker stops, ₹0.3–0.5 a sentence, 17 of 18 lines right in real calls), how it works in three steps, and **Let's Get Started**. It also starts waking the free server while you read. |
-| `/start` | One card with a **Start / Join** switch. Starting: a meeting name, the translator as two option cards (GPT-Realtime-2 *Recommended*, GPT-Realtime-Translate *Fastest start*), and the access code, hidden like a password. Joining: just the invite link or code. |
+| `/` | What the app does, the measured numbers for GPT-Realtime-2 and Gemini side by side (see [Results](#results)), how it works in three steps, and **Let's Get Started**. It also starts waking the free server while you read. |
+| `/start` | One card with a **Start / Join** switch. Starting: a meeting name, the translator as three option cards (GPT-Realtime-2 *Recommended*, GPT-Realtime-Translate *Fastest start*, Gemini Live Translate *Experimental*), and the access code, hidden like a password. Joining: just the invite link or code. |
 | `/m/<code>` | The call: both video tiles, the language switch, captions with the timing under each line, mute / camera / translate controls. |
 
 ## How it works
@@ -70,6 +78,14 @@ flowchart LR
    for one session; the server also sets the interpreter prompt
    ([interpreter-prompt.ts](backend/src/openai/interpreter-prompt.ts)), the
    languages, and a male voice speaking 1.2× fast.
+5. **Gemini works differently** ([gemini-session.ts](frontend/src/lib/gemini-session.ts)):
+   Google's Live API has no WebRTC, only a WebSocket carrying raw audio. So
+   the browser does the audio work itself -- the mic is turned into 16 kHz
+   samples and sent every 100 ms, and Gemini's 24 kHz reply is played into
+   an audio track that replaces the speaker's voice on the call. There's no
+   pause detection: it translates continuously. The server's one-use token
+   ([gemini.service.ts](backend/src/openai/gemini.service.ts)) is locked to
+   the model and the listener's language.
 
 ## Results
 
@@ -92,13 +108,25 @@ ends while the previous translation is still playing waits its turn.
 long one**; silence is close to free. Every finished line is in the server
 log with its cost and timing.
 
+**Gemini 3.5 Live Translate** (first tests, 14 Oct 2026):
+
+- **Real call, English → Telugu:** translations right, apart from one
+  phrase dropped ("in real time"); the voice ran **under ~2 s behind** the
+  speaker, translating while they talked.
+- **Recorded Hindi clip:** right into English ("How are you? Let's start
+  today's meeting.") and into Telugu; the translated voice started **~3.4 s
+  after the speaker started**, before the 3.9 s sentence had ended.
+- **Cost:** Google's price is about **$0.037 a minute (~₹3)**, input and
+  output audio, silence included.
+- Not tested yet: a Telugu speaker as the source, and long calls.
+
 ## Compared with Meet Translate
 
 | | Meet Translate (own pipeline) | This app (GPT-Realtime-2) |
 |---|---|---|
 | Voice starts | ~1.4 s after the sentence ends | ~1.1–1.5 s after the sentence ends |
 | Hindi / Telugu accuracy (real voice) | 7/7 and 7/7 | 10/11 and 7/7 |
-| Directions | Hindi, Telugu, Tamil, Kannada → English | Hindi, Telugu → English; Hindi ↔ Telugu |
+| Directions | Hindi, Telugu, Tamil, Kannada → English | All six between Hindi, Telugu and English |
 | Cost, 30-minute call | ~₹8 | ~₹30–60 (estimate) |
 | Hosting | own laptop + ngrok (₹0, only while it's on) | Vercel + Render free (always online; sleeps after 15 idle min) |
 | Code | ~3,000 lines, 3 services incl. a speech model | ~2,200 lines, 2 services |
@@ -106,9 +134,9 @@ log with its cost and timing.
 Same speed, similar accuracy. The own pipeline is several times cheaper and
 covers more languages; this one is simpler to run and host.
 
-## GPT-Realtime-2 vs GPT-Realtime-Translate
+## The three models
 
-The dedicated interpreter model was tried first. On 13 real Hindi sentences
+OpenAI's dedicated interpreter model was tried first. On 13 real Hindi sentences
 it got **8 right, 2 partly, 3 wrong**, and real Telugu much worse:
 
 | Said | GPT-Realtime-Translate | GPT-Realtime-2 + our prompt |
@@ -117,13 +145,18 @@ it got **8 right, 2 partly, 3 wrong**, and real Telugu much worse:
 | Ye kaam toh baayein haath ka khel hai | "You can do this work manually." ❌ | "This work is a piece of cake." ✅ |
 | Budget do lakh pachaas hazaar | "two lakh", then "two hundred and fifty thousand" (both spoken) | "two lakh fifty thousand rupees" ✅ |
 
-| | GPT-Realtime-Translate | GPT-Realtime-2 |
-|---|---|---|
-| English starts | while the speaker is talking | after each sentence |
-| Wrong guesses spoken aloud | yes: Hindi puts the verb and "kya" last, so it guesses early and corrects itself out loud | no |
-| Takes instructions | no | yes |
-| Hindi ↔ Telugu | no | yes |
-| Cost | $0.034/min, silence included | per token |
+| | GPT-Realtime-Translate | GPT-Realtime-2 | Gemini 3.5 Live Translate |
+|---|---|---|---|
+| Translation starts | while the speaker is talking | after each sentence | while the speaker is talking |
+| Wrong guesses spoken aloud | yes: Hindi puts the verb and "kya" last, so it guesses early and corrects itself out loud | no | none seen yet |
+| Takes instructions | no | yes | no |
+| Speaks Telugu (Hindi ↔ Telugu, English → Telugu) | no | yes | yes |
+| Connection | WebRTC | WebRTC | WebSocket, raw audio |
+| Cost | $0.034/min, silence included | per token | ~$0.037/min, silence included |
+
+Our ranking after the first real calls: **Gemini first** (translates as you
+talk, all directions, good Telugu), then GPT-Realtime-2 (most controllable,
+but waits for each sentence), then GPT-Realtime-Translate.
 
 ## Problems found in real calls
 
@@ -140,13 +173,15 @@ a comment saying why:
 | **Nothing translated** for some speakers | A soft voice stayed under the loudness threshold; on a noisy line the noise counted as endless speech | Lower threshold; background noise learned all the time |
 | Real calls **much slower** than Meet Translate | The listener's browser used to translate, so the voice first crossed the call's (relayed) connection | Translation moved to the speaker's side, on their clean mic |
 | The page **went quiet** when the free server restarted | Meetings live in memory | A clear "the server restarted, create a new meeting" message |
+| Google **rejected the Gemini token request** | Google's docs name the settings field `liveConnectConstraints`, but that's only the SDK's name; the REST API wants `bidiGenerateContentSetup` | Sent what Google's own SDK sends (found by reading the SDK's source) |
 
 ## Running it
 
-Needs Node.js and an OpenAI API key with credit.
+Needs Node.js and an OpenAI API key with credit; a Gemini API key
+(aistudio.google.com/apikey) for Gemini meetings.
 
 ```bash
-cd backend && cp .env.example .env   # then put your OPENAI_API_KEY in .env
+cd backend && cp .env.example .env   # then put OPENAI_API_KEY and GEMINI_API_KEY in .env
 npm install && npm run start:dev     # http://localhost:4100
 
 cd frontend && npm install && npm run dev   # http://localhost:3100
@@ -159,12 +194,12 @@ two browsers with headphones, to avoid echo). Tests: `cd backend && npm test`.
 
 | Part | Where | Settings |
 |---|---|---|
-| Backend (NestJS + Socket.IO) | **Render**, free web service | `render.yaml` in this repo: New → Blueprint. Fill in `OPENAI_API_KEY`, `ACCESS_CODE`, `FRONTEND_URL` (the Vercel address) and the TURN login |
+| Backend (NestJS + Socket.IO) | **Render**, free web service | `render.yaml` in this repo: New → Blueprint. Fill in `OPENAI_API_KEY`, `GEMINI_API_KEY`, `ACCESS_CODE`, `FRONTEND_URL` (the Vercel address) and the TURN login |
 | Frontend (Next.js) | **Vercel** | Root directory `frontend`; env (type *Config*) `NEXT_PUBLIC_API_URL=https://<render-address>/api` and `NEXT_PUBLIC_WS_URL=https://<render-address>` |
 
 - **Access code:** creating a meeting needs it, so a stranger with the link
-  can't run up the OpenAI bill. A monthly budget limit on the OpenAI account
-  is a good second guard.
+  can't run up the OpenAI or Google bill. A monthly budget limit on both
+  accounts is a good second guard.
 - **TURN relay:** between two home networks the call often only connects
   through it ("Can't connect on this network" without it). ExpressTURN's
   free tier works.
@@ -174,9 +209,14 @@ two browsers with headphones, to avoid echo). Tests: `cd backend && npm test`.
 ## Limits
 
 - One-to-one calls only, and no saved transcripts (no database, on purpose).
-- Translation waits for each sentence to end; a long speech is translated in
-  pieces of at most 15 s.
-- OpenAI's models accept Hindi and Telugu as input but not Tamil or Kannada.
+- GPT-Realtime-2 waits for each sentence to end; a long speech is translated
+  in pieces of at most 15 s.
+- OpenAI's models accept Hindi and Telugu as input but not Tamil or Kannada
+  (so the app offers just Hindi, Telugu and English).
+- Gemini translates everything the mic hears: a video playing in the
+  background got translated too in a real test. Use headphones.
+- Google doesn't document how long a Gemini Live Translate session may last;
+  if one ends, switching translation off and on starts a new one.
 - On one laptop with two browsers, or with Discord also open on speakers,
   sound leaks between the apps' microphones -- use headphones.
 
@@ -188,7 +228,10 @@ Researched, not built yet:
   noise and number handling according to OpenAI -- a one-line upgrade.
 - **GPT-Realtime-2.1-mini**: about 3× cheaper audio; needs testing on Hindi
   and Telugu.
-- **Gemini 3.8 Live** (Google): takes instructions like GPT-Realtime-2,
+- **Gemini as the default**, once a real Telugu speaker and a long call have
+  been tried.
+- **Gemini 3.8 Live** (Google's assistant model, not the translator): takes
+  instructions like GPT-Realtime-2,
   audio roughly a tenth of the price per token, a free tier, and Hindi and
   Telugu support. WebSocket only (no WebRTC), and sessions are capped at 15
   minutes, so it's about half a day of work.

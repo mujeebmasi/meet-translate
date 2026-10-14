@@ -7,20 +7,37 @@ import { api } from '@/lib/api';
 // The home page: what the app does, how fast and how well, and a button to
 // /start (create or join a call).
 
-// From our own test calls (see the README's Results section). Times count
-// from the moment the speaker stops talking.
-const STATS = [
-  { value: '~1 s', label: 'Caption appears', detail: 'after the speaker stops' },
-  { value: '~1.4 s', label: 'Translated voice starts', detail: 'after the speaker stops' },
-  { value: '₹0.3–0.5', label: 'Per sentence', detail: 'silence costs nothing' },
-  { value: '17 / 18', label: 'Lines right in real calls', detail: 'Hindi → English, Telugu → Hindi' },
+// From our own test calls (see the README's Results section), one row per
+// model. GPT-Realtime-2 waits for the end of each sentence, so its times
+// count from when the speaker stops; Gemini translates while they talk.
+const MODEL_STATS = [
+  {
+    model: 'GPT-Realtime-2',
+    note: 'translates after each sentence',
+    stats: [
+      { value: '~1 s', label: 'Caption appears', detail: 'after the speaker stops' },
+      { value: '~1.4 s', label: 'Translated voice starts', detail: 'after the speaker stops' },
+      { value: '₹0.3–0.5', label: 'Per sentence', detail: 'silence costs nothing' },
+      { value: '17 / 18', label: 'Lines right in real calls', detail: 'Hindi → English, Telugu → Hindi' },
+    ],
+  },
+  {
+    model: 'Gemini 3.5 Live Translate',
+    note: 'translates while you talk',
+    stats: [
+      { value: '< 2 s', label: 'Behind the speaker', detail: 'in a real call, English → Telugu' },
+      { value: '~3.4 s', label: 'Translated voice starts', detail: 'after the speaker starts, before they finish' },
+      { value: '~₹3', label: 'Per minute', detail: "Google's price, silence included" },
+      { value: '6 / 6', label: 'Directions', detail: 'incl. into Telugu, which OpenAI can’t speak' },
+    ],
+  },
 ];
 
 const STEPS = [
-  { title: 'You speak', text: 'Your browser sends your own microphone straight to OpenAI.' },
+  { title: 'You speak', text: 'Your browser sends your own microphone straight to the translator, OpenAI or Google.' },
   {
-    title: 'It interprets each sentence',
-    text: 'GPT-Realtime-2 translates when you pause: it never answers for you, and keeps names and numbers exact.',
+    title: 'It interprets',
+    text: 'GPT-Realtime-2 translates each sentence when you pause, keeping names and numbers exact. Gemini Live Translate translates while you are still talking.',
   },
   { title: 'They hear you in their language', text: 'The translated voice replaces yours on the call, with captions.' },
 ];
@@ -38,14 +55,13 @@ export default function HomePage() {
     <main className="mx-auto flex min-h-screen max-w-4xl flex-col justify-center gap-10 px-4 py-14">
       <section className="text-center">
         <p className="mb-4 inline-block rounded-full border border-line bg-surface px-3 py-1 text-xs text-muted">
-          Live interpretation · powered by OpenAI GPT-Realtime-2
+          Live interpretation · OpenAI GPT-Realtime-2 or Google Gemini
         </p>
         <h1 className="text-5xl font-semibold sm:text-6xl">
           Meet <em className="text-brand not-italic">Translate</em>
         </h1>
         <p className="mx-auto mt-4 max-w-2xl text-lg text-muted">
-          Video calls where you speak your language and they hear theirs: a translated voice and live captions,
-          sentence by sentence.
+          Video calls where you speak your language and they hear theirs: a translated voice and live captions.
         </p>
         <div className="mt-5 flex flex-wrap justify-center gap-2">
           {DIRECTIONS.map((direction) => (
@@ -56,15 +72,22 @@ export default function HomePage() {
         </div>
       </section>
 
-      <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        {STATS.map((stat) => (
-          <div key={stat.label} className="rounded-xl border border-line bg-surface p-5">
-            <p className="text-2xl font-semibold whitespace-nowrap text-body sm:text-3xl">{stat.value}</p>
-            <p className="mt-2 text-sm font-medium text-body">{stat.label}</p>
-            <p className="text-xs text-muted">{stat.detail}</p>
+      {MODEL_STATS.map((row) => (
+        <section key={row.model}>
+          <h2 className="mb-3 text-sm font-semibold text-body">
+            {row.model} <span className="font-normal text-muted">· {row.note}</span>
+          </h2>
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+            {row.stats.map((stat) => (
+              <div key={stat.label} className="rounded-xl border border-line bg-surface p-5">
+                <p className="text-2xl font-semibold whitespace-nowrap text-body sm:text-3xl">{stat.value}</p>
+                <p className="mt-2 text-sm font-medium text-body">{stat.label}</p>
+                <p className="text-xs text-muted">{stat.detail}</p>
+              </div>
+            ))}
           </div>
-        ))}
-      </section>
+        </section>
+      ))}
 
       <section>
         <h2 className="mb-4 text-center text-sm font-semibold tracking-wide text-muted uppercase">How it works</h2>
@@ -89,8 +112,8 @@ export default function HomePage() {
           Let&apos;s Get Started →
         </Link>
         <p className="max-w-xl text-xs text-muted">
-          Numbers from our own test calls on laptop mics. The translator waits for the end of each sentence, so a
-          longer sentence means a longer wait before it starts.
+          Numbers from our own test calls on laptop mics. GPT-Realtime-2 waits for the end of each sentence, so a
+          longer sentence means a longer wait. Gemini starts while you are still talking.
         </p>
       </section>
     </main>
