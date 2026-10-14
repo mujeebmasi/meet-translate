@@ -142,6 +142,25 @@ export class MeetingsGateway implements OnGatewayDisconnect {
       .emit('peer-updated', { peer: this.presence.get(code, client.id) });
   }
 
+  // Push to talk: someone pressed or released "Hold to talk". Only one
+  // person may talk at a time; if someone else already is, the presser is
+  // told 'talk-denied' (their browser turns their mic back off).
+  @SubscribeMessage('talk')
+  handleTalk(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() body: { on: boolean },
+  ): void {
+    const code = meetingCodeOf(client);
+    if (!code) return;
+    if (!this.presence.setTalking(code, client.id, body?.on === true)) {
+      client.emit('talk-denied');
+      return;
+    }
+    this.server
+      .to(code)
+      .emit('peer-updated', { peer: this.presence.get(code, client.id) });
+  }
+
   // A caption line from a speaker's browser, which translates its own
   // voice: passed on to the listener it's for (again each time it grows).
   // Finished lines are also written to the server log -- what was said,

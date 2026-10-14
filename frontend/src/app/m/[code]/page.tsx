@@ -32,7 +32,9 @@ export default function MeetingRoom() {
   const [translator, setTranslator] = useState(''); // which OpenAI model, see TRANSLATORS
   const [notFound, setNotFound] = useState(false);
   const [name, setName] = useState(() => (typeof window === 'undefined' ? '' : localStorage.getItem('omt:name') || ''));
-  const [lang, setLang] = useState(() => (typeof window === 'undefined' ? 'en' : localStorage.getItem('omt:lang') || 'en'));
+  const [lang, setLang] = useState(() =>
+    typeof window === 'undefined' ? 'en' : localStorage.getItem('omt:lang') || 'en',
+  );
   const [lobbyError, setLobbyError] = useState('');
   const [joining, setJoining] = useState(false);
 
@@ -40,7 +42,7 @@ export default function MeetingRoom() {
   const [joined, setJoined] = useState(false);
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
   const [peers, setPeers] = useState<RemotePeer[]>([]);
-  const [muted, setMuted] = useState(false);
+  const [talking, setTalking] = useState(false); // holding "Hold to talk" (push to talk)
   const [cameraOff, setCameraOff] = useState(false);
   // Shown above the call when the link to our server drops (see connectSocket).
   const [serverNotice, setServerNotice] = useState('');
@@ -87,11 +89,15 @@ export default function MeetingRoom() {
       try {
         stream = await navigator.mediaDevices.getUserMedia({ audio: true }); // no camera
       } catch {
-        setLobbyError('Your microphone is blocked. Allow it from the lock icon next to the address bar, then try again.');
+        setLobbyError(
+          'Your microphone is blocked. Allow it from the lock icon next to the address bar, then try again.',
+        );
         setJoining(false);
         return;
       }
     }
+    // Push to talk: the mic stays off until "Hold to talk" is held.
+    stream.getAudioTracks().forEach((track) => (track.enabled = false));
     setLocalStream(stream);
     connectSocket(stream);
   }
@@ -120,8 +126,18 @@ export default function MeetingRoom() {
     // it, so only people already on the list are updated -- adding unknown
     // ones once showed me a copy of myself, stuck on "Connecting...".
     socket.on('peer-updated', (msg: { peer: Peer }) =>
-      updatePeer(msg.peer.socketId, { lang: msg.peer.lang, translateOn: msg.peer.translateOn }),
+      updatePeer(msg.peer.socketId, {
+        lang: msg.peer.lang,
+        translateOn: msg.peer.translateOn,
+        talking: msg.peer.talking,
+      }),
     );
+
+    // Push to talk: someone else got the floor a moment before me.
+    socket.on('talk-denied', () => {
+      stream.getAudioTracks().forEach((track) => (track.enabled = false));
+      setTalking(false);
+    });
 
     // A line of what someone else said, translated for me by their browser
     // (again each time it grows).
@@ -134,8 +150,10 @@ export default function MeetingRoom() {
       });
     });
 
-    socket.on('signal', (msg: { from: string; data: { description?: RTCSessionDescriptionInit; candidate?: RTCIceCandidateInit } }) =>
-      handleSignal(msg.from, msg.data, stream),
+    socket.on(
+      'signal',
+      (msg: { from: string; data: { description?: RTCSessionDescriptionInit; candidate?: RTCIceCandidateInit } }) =>
+        handleSignal(msg.from, msg.data, stream),
     );
 
     socket.on('full', () => setLobbyError('This meeting is full.'));
@@ -338,12 +356,53 @@ export default function MeetingRoom() {
 
   // ---------- controls ----------
 
-  function toggleMute() {
-    const track = localStream?.getAudioTracks()[0];
-    if (!track) return;
-    track.enabled = !track.enabled;
-    setMuted(!track.enabled);
+  // Push to talk: my mic reaches the call and the translator only while I
+  // hold "Hold to talk" (or Space). When I let go, the translator hears
+  // silence, so it finishes my last sentence and then stays quiet. One
+  // person at a time: the server refuses ('talk-denied') if someone else
+  // already has the floor.
+  const otherTalking = peers.find((p) => p.talking);
+
+  function startTalking() {
+    const mic = localStream?.getAudioTracks()[0];
+    if (!mic || talking || otherTalking) return;
+    mic.enabled = true;
+    setTalking(true);
+    socketRef.current?.emit('talk', { on: true });
   }
+
+  function stopTalking() {
+    const mic = localStream?.getAudioTracks()[0];
+    if (!mic || !talking) return;
+    mic.enabled = false;
+    setTalking(false);
+    socketRef.current?.emit('talk', { on: false });
+  }
+
+  // Space works too -- except while typing or choosing in a field.
+  useEffect(() => {
+    if (!joined) return;
+    const inField = (e: KeyboardEvent) =>
+      e.target instanceof HTMLElement && e.target.closest('input, select, textarea');
+    const down = (e: KeyboardEvent) => {
+      if (e.code !== 'Space' || e.repeat || inField(e)) return;
+      e.preventDefault();
+      startTalking();
+    };
+    const up = (e: KeyboardEvent) => {
+      if (e.code !== 'Space' || inField(e)) return;
+      e.preventDefault();
+      stopTalking();
+    };
+    window.addEventListener('keydown', down);
+    window.addEventListener('keyup', up);
+    return () => {
+      window.removeEventListener('keydown', down);
+      window.removeEventListener('keyup', up);
+    };
+    // startTalking/stopTalking only read the values listed here.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [joined, talking, otherTalking, localStream]);
 
   function toggleCamera() {
     const track = localStream?.getVideoTracks()[0];
@@ -422,7 +481,7 @@ export default function MeetingRoom() {
               <p className="mt-1 text-xs text-muted">
                 You hear the others in this language.{' '}
                 {translator !== 'gpt-realtime-translate'
-                  ?'Hindi and Telugu speakers are translated into English and into each other; English speakers into Hindi or Telugu.'
+                  ? 'Hindi and Telugu speakers are translated into English and into each other; English speakers into Hindi or Telugu.'
                   : 'Hindi and Telugu speakers are translated into English.'}
               </p>
             </div>
@@ -469,14 +528,14 @@ export default function MeetingRoom() {
           mirror
           videoOff={cameraOff}
           name={name}
-          label={`${name} (you) · ${LANGUAGES[lang]}${muted ? ' · mic off' : ''}`}
+          label={`${name} (you) · ${LANGUAGES[lang]}${talking ? ' · talking' : ''}`}
         />
         {peers.map((p) => (
           <VideoTile
             key={p.socketId}
             stream={p.stream}
             name={p.name}
-            label={`${p.name} · ${LANGUAGES[p.lang] ?? p.lang}${isTranslatedForMe(p) ? ` → ${LANGUAGES[lang]}` : ''}`}
+            label={`${p.name} · ${LANGUAGES[p.lang] ?? p.lang}${isTranslatedForMe(p) ? ` → ${LANGUAGES[lang]}` : ''}${p.talking ? ' · talking' : ''}`}
             notice={p.link === 'failed' ? "Can't connect on this network." : undefined}
           />
         ))}
@@ -498,18 +557,18 @@ export default function MeetingRoom() {
             </p>
           )}
           {captions
-              // A reply to a filler sound ("um") can come back empty: hide it.
-              .filter((c) => !c.done || c.english.trim())
-              .map((c) => (
-                <div key={c.id} className="py-1">
-                  <b className="text-brand">{c.name}</b> {c.english}
-                  {!c.done && <span className="text-muted"> ...</span>}
-                  {c.original && <small className="block text-muted">{c.original}</small>}
-                  {(c.timing?.voiceMs !== undefined || c.timing?.fromStartMs !== undefined) && (
-                    <small className="block text-xs text-muted">{timingNote(c.timing)}</small>
-                  )}
-                </div>
-              ))}
+            // A reply to a filler sound ("um") can come back empty: hide it.
+            .filter((c) => !c.done || c.english.trim())
+            .map((c) => (
+              <div key={c.id} className="py-1">
+                <b className="text-brand">{c.name}</b> {c.english}
+                {!c.done && <span className="text-muted"> ...</span>}
+                {c.original && <small className="block text-muted">{c.original}</small>}
+                {(c.timing?.voiceMs !== undefined || c.timing?.fromStartMs !== undefined) && (
+                  <small className="block text-xs text-muted">{timingNote(c.timing)}</small>
+                )}
+              </div>
+            ))}
         </div>
         {errors.map((p) => (
           <p key={p.socketId} className="mt-1 text-xs text-bad">
@@ -519,15 +578,39 @@ export default function MeetingRoom() {
       </section>
 
       <footer className="flex flex-wrap items-center gap-3 border-t border-line bg-surface px-4 py-3">
-        <Button variant={muted ? 'danger' : 'quiet'} onClick={toggleMute}>
-          {muted ? 'Unmute' : 'Mute'}
-        </Button>
+        {/* Push to talk: hold (mouse, finger) to talk, let go to stop. A
+            plain <button>, as the press-and-release events are needed. */}
+        <button
+          type="button"
+          disabled={!!otherTalking}
+          onPointerDown={(e) => {
+            e.currentTarget.setPointerCapture(e.pointerId); // still "held" if the finger slides off
+            startTalking();
+          }}
+          onPointerUp={stopTalking}
+          onPointerCancel={stopTalking}
+          onContextMenu={(e) => e.preventDefault()} // a long press on a phone opens no menu
+          className={`touch-none rounded-lg px-6 py-3 text-sm font-semibold transition-colors select-none disabled:cursor-not-allowed disabled:opacity-50 ${
+            talking ? 'bg-bad text-white' : 'bg-brand text-white hover:bg-brand-dark'
+          }`}
+        >
+          {talking
+            ? 'Talking… let go to stop'
+            : otherTalking
+              ? `${otherTalking.name} is talking…`
+              : 'Hold to talk (or Space)'}
+        </button>
         <Button variant={cameraOff ? 'danger' : 'quiet'} onClick={toggleCamera}>
           {cameraOff ? 'Camera on' : 'Camera off'}
         </Button>
         {listening && (
           <label className="flex items-center gap-2 text-sm whitespace-nowrap" title="Off: hear their own voice">
-            <input type="checkbox" checked={translateOn} onChange={(e) => changeTranslateOn(e.target.checked)} className="w-auto" />
+            <input
+              type="checkbox"
+              checked={translateOn}
+              onChange={(e) => changeTranslateOn(e.target.checked)}
+              className="w-auto"
+            />
             Translate to {LANGUAGES[lang]}
           </label>
         )}
@@ -563,7 +646,15 @@ function keepFlowing(stream: MediaStream) {
   void audio.play().catch(() => {});
 }
 
-function LanguageSelect({ value, onChange, className }: { value: string; onChange: (lang: string) => void; className?: string }) {
+function LanguageSelect({
+  value,
+  onChange,
+  className,
+}: {
+  value: string;
+  onChange: (lang: string) => void;
+  className?: string;
+}) {
   return (
     <select value={value} onChange={(e) => onChange(e.target.value)} className={className}>
       {Object.entries(LANGUAGES).map(([code, langName]) => (

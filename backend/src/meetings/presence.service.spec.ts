@@ -36,4 +36,15 @@ describe('PresenceService', () => {
     presence.setLang('room1', 'a', 'hi');
     expect(presence.get('room1', 'a')?.lang).toBe('hi');
   });
+
+  it('lets only one person talk at a time (push to talk)', () => {
+    const presence = new PresenceService();
+    presence.add('room1', peer('a'));
+    presence.add('room1', peer('b'));
+    expect(presence.setTalking('room1', 'a', true)).toBe(true);
+    expect(presence.setTalking('room1', 'b', true)).toBe(false); // a has the floor
+    expect(presence.get('room1', 'b')?.talking).toBeFalsy();
+    expect(presence.setTalking('room1', 'a', false)).toBe(true);
+    expect(presence.setTalking('room1', 'b', true)).toBe(true); // now b may
+  });
 });

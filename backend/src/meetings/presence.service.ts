@@ -9,6 +9,8 @@ export interface Peer {
   // Whether they want to hear others translated (their "Translate to ..."
   // switch). The speakers' browsers read it to know whether to translate.
   translateOn?: boolean;
+  // Push to talk: whether they're holding "Hold to talk" right now.
+  talking?: boolean;
 }
 
 // Who is on each call right now, in memory. Nothing is kept once people
@@ -45,5 +47,18 @@ export class PresenceService {
   setTranslateOn(meetingCode: string, socketId: string, on: boolean): void {
     const peer = this.get(meetingCode, socketId);
     if (peer) peer.translateOn = on;
+  }
+
+  // Push to talk, one person at a time: starting fails (false) while
+  // someone else in the call is talking. Stopping always works.
+  setTalking(meetingCode: string, socketId: string, on: boolean): boolean {
+    const peer = this.get(meetingCode, socketId);
+    if (!peer) return false;
+    const someoneElse = this.list(meetingCode).some(
+      (p) => p.talking && p.socketId !== socketId,
+    );
+    if (on && someoneElse) return false;
+    peer.talking = on;
+    return true;
   }
 }

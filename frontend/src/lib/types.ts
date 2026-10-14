@@ -11,6 +11,7 @@ export interface Peer {
   name: string;
   lang: string;
   translateOn?: boolean; // their "Translate to ..." switch (on unless said otherwise)
+  talking?: boolean; // holding "Hold to talk" right now (push to talk)
 }
 
 // Same three as the backend's languages.ts. OpenAI's models accept Hindi
