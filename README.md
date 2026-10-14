@@ -32,6 +32,14 @@ real call (see [Problems found in real calls](#problems-found-in-real-calls)).
   Render), OpenAI Realtime API over WebRTC. No database: meetings live in
   memory.
 
+## The site
+
+| Page | What's on it |
+|---|---|
+| `/` | What the app does, the measured numbers (caption ~1 s and voice ~1.4 s after the speaker stops, ₹0.3–0.5 a sentence, 17 of 18 lines right in real calls), how it works in three steps, and **Let's Get Started**. It also starts waking the free server while you read. |
+| `/start` | One card with a **Start / Join** switch. Starting: a meeting name, the translator as two option cards (GPT-Realtime-2 *Recommended*, GPT-Realtime-Translate *Fastest start*), and the access code, hidden like a password. Joining: just the invite link or code. |
+| `/m/<code>` | The call: both video tiles, the language switch, captions with the timing under each line, mute / camera / translate controls. |
+
 ## How it works
 
 ```mermaid
@@ -171,3 +179,18 @@ two browsers with headphones, to avoid echo). Tests: `cd backend && npm test`.
 - OpenAI's models accept Hindi and Telugu as input but not Tamil or Kannada.
 - On one laptop with two browsers, or with Discord also open on speakers,
   sound leaks between the apps' microphones -- use headphones.
+
+## What's next
+
+Researched, not built yet:
+
+- **GPT-Realtime-2.1**: same price as GPT-Realtime-2, with better silence,
+  noise and number handling according to OpenAI -- a one-line upgrade.
+- **GPT-Realtime-2.1-mini**: about 3× cheaper audio; needs testing on Hindi
+  and Telugu.
+- **Gemini 3.8 Live** (Google): takes instructions like GPT-Realtime-2,
+  audio roughly a tenth of the price per token, a free tier, and Hindi and
+  Telugu support. WebSocket only (no WebRTC), and sessions are capped at 15
+  minutes, so it's about half a day of work.
+- **A TURN relay closer to India** (e.g. Cloudflare's), now that the
+  translated voice travels over the call.
