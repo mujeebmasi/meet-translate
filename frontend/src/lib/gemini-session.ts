@@ -23,6 +23,17 @@ const IN_RATE = 16000; // what Gemini wants to hear
 const OUT_RATE = 24000; // what Gemini speaks
 const CHUNK = IN_RATE / 10; // 100 ms of samples per message, as Google suggests
 
+// How far the translated voice may run behind before silent pieces are
+// skipped (see play()). A little slack keeps playback smooth.
+const MAX_BEHIND_S = 0.2;
+const SILENCE_LEVEL = 0.005; // average loudness below this counts as silence
+
+function isSilent(samples: Float32Array): boolean {
+  let sum = 0;
+  for (const s of samples) sum += s * s;
+  return Math.sqrt(sum / samples.length) < SILENCE_LEVEL;
+}
+
 // Runs on the browser's audio thread and hands every block of mic samples
 // (128 at a time) to this file. Written inline so there's no extra file to
 // serve.
@@ -47,6 +58,13 @@ export async function startGemini(options: TranslatorOptions): Promise<{ stop: (
   let playAt = 0; // when the next piece starts, so pieces play back to back
   const play = (base64: string) => {
     const samples = int16ToFloat(base64ToInt16(base64));
+    // Gemini streams non-stop, silence included (about 60% of what it sends
+    // in a test). Played back to back, every late network piece pushed all
+    // later ones back for good -- in a real call the voice ended up 8-10 s
+    // behind. So while we're behind, silent pieces are skipped: the delay
+    // drains away at every pause, and no speech is ever dropped.
+    const behind = playAt - output.currentTime;
+    if (behind > MAX_BEHIND_S && isSilent(samples)) return;
     const buffer = output.createBuffer(1, samples.length, OUT_RATE);
     buffer.copyToChannel(samples, 0);
     const source = output.createBufferSource();
