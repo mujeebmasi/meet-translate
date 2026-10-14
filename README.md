@@ -12,7 +12,7 @@ and did best in our own tests.
 **Live:** https://meet-translate.vercel.app (creating a meeting needs
 an access code; joining needs only the invite link)
 
-A sibling of [Meet Translate](https://github.com/mujeebmasi/meeting-translate),
+A sibling of [Indic Fish Realtime Translate](https://github.com/mujeebmasi/indic-fish-realtime-translate),
 which builds the same thing from separate parts (local speech-to-text, an LLM
 translator, a text-to-speech voice). This one hands all of that to a single
 model -- and turned out to need a lot of work around it to behave in a
@@ -125,9 +125,9 @@ log with its cost and timing.
 - Not tested yet: long calls (Google doesn't document a session limit), and
   a line-by-line accuracy count like the one for GPT-Realtime-2.
 
-## Compared with Meet Translate
+## Compared with Indic Fish Realtime Translate
 
-| | Meet Translate (own pipeline) | This app (GPT-Realtime-2) |
+| | Indic Fish Realtime Translate (own pipeline) | This app (GPT-Realtime-2) |
 |---|---|---|
 | Voice starts | ~1.4 s after the sentence ends | ~1.1–1.5 s after the sentence ends |
 | Hindi / Telugu accuracy (real voice) | 7/7 and 7/7 | 10/11 and 7/7 |
@@ -176,7 +176,7 @@ a comment saying why:
 | The next sentence **cut off** the translation still playing | OpenAI's own pause detection clears playing audio when the speaker starts again, even with "don't interrupt" set | Pauses found in the browser instead; the next translation waits until the last is fully *heard* |
 | **Made-up sentences** from breathing or background noise | Given a noise, the model often invents a sentence | Short sounds are translated only if the speech-to-text finds real words in them |
 | **Nothing translated** for some speakers | A soft voice stayed under the loudness threshold; on a noisy line the noise counted as endless speech | Lower threshold; background noise learned all the time |
-| Real calls **much slower** than Meet Translate | The listener's browser used to translate, so the voice first crossed the call's (relayed) connection | Translation moved to the speaker's side, on their clean mic |
+| Real calls **much slower** than Indic Fish Realtime Translate | The listener's browser used to translate, so the voice first crossed the call's (relayed) connection | Translation moved to the speaker's side, on their clean mic |
 | The page **went quiet** when the free server restarted | Meetings live in memory | A clear "the server restarted, create a new meeting" message |
 | Google **rejected the Gemini token request** | Google's docs name the settings field `liveConnectConstraints`, but that's only the SDK's name; the REST API wants `bidiGenerateContentSetup` | Sent what Google's own SDK sends (found by reading the SDK's source) |
 
