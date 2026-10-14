@@ -159,7 +159,12 @@ export class MeetingsGateway implements OnGatewayDisconnect {
       usage?: RealtimeUsage; // gpt-realtime-2 only: OpenAI's token counts
       // gpt-realtime-2 only: ms after the speaker's pause was noticed that
       // the translated text / voice started, and how long they spoke.
-      timing?: { textMs?: number; voiceMs?: number; spokeMs?: number };
+      timing?: { textMs?: number; voiceMs?: number; spokeMs?: number } & {
+        // Gemini only: ms after they started speaking that the translated
+        // voice played, and how much of that it waited in the queue.
+        fromStartMs?: number;
+        queueMs?: number;
+      };
     },
   ): void {
     const code = meetingCodeOf(client);
@@ -183,9 +188,12 @@ export class MeetingsGateway implements OnGatewayDisconnect {
       : '';
     const seconds = (ms?: number) =>
       typeof ms === 'number' ? `${(ms / 1000).toFixed(2)}s` : '?';
-    const timing = body.timing
-      ? `\n    After the pause: text ${seconds(body.timing.textMs)}, voice ${seconds(body.timing.voiceMs)}`
-      : '';
+    const t = body.timing;
+    const timing = !t
+      ? ''
+      : t.fromStartMs !== undefined
+        ? `\n    Voice ${seconds(t.fromStartMs)} after they started speaking (${seconds(t.queueMs)} of it queued)`
+        : `\n    After the pause: text ${seconds(t.textMs)}, voice ${seconds(t.voiceMs)}`;
     this.logger.log(`${speaker.name} said: ${said}
     Translation: ${english}${cost}${timing}`);
   }

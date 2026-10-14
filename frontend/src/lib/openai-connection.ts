@@ -14,7 +14,10 @@ export interface CaptionLine {
   // English text, and then the English voice, started (milliseconds).
   // spokeMs: how long the speaker talked before pausing, so the wait can be
   // told apart from the translator's own speed.
-  timing?: { textMs?: number; voiceMs?: number; spokeMs?: number };
+  // Gemini instead (it translates while they talk): fromStartMs = how long
+  // after they started speaking the translated voice played, queueMs = how
+  // much of that it waited in our playback queue.
+  timing?: { textMs?: number; voiceMs?: number; spokeMs?: number; fromStartMs?: number; queueMs?: number };
 }
 
 export interface TranslatorOptions {

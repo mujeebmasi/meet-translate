@@ -70,6 +70,12 @@ export function continuousCaptions(onLine: (line: CaptionLine) => void) {
       changed();
     },
 
+    // How fast the translated voice followed (Gemini only, see gemini-session.ts).
+    setTiming(timing: CaptionLine['timing']) {
+      line.timing = timing;
+      changed();
+    },
+
     stop() {
       clearTimeout(pauseTimer);
     },

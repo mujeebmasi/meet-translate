@@ -27,11 +27,12 @@ const CHUNK = IN_RATE / 10; // 100 ms of samples per message, as Google suggests
 // skipped (see play()). A little slack keeps playback smooth.
 const MAX_BEHIND_S = 0.2;
 const SILENCE_LEVEL = 0.005; // average loudness below this counts as silence
+const SPEECH_LEVEL = 0.01; // on the mic: louder than this counts as speaking
 
-function isSilent(samples: Float32Array): boolean {
+function isSilent(samples: Float32Array, level = SILENCE_LEVEL): boolean {
   let sum = 0;
   for (const s of samples) sum += s * s;
-  return Math.sqrt(sum / samples.length) < SILENCE_LEVEL;
+  return Math.sqrt(sum / samples.length) < level;
 }
 
 // Runs on the browser's audio thread and hands every block of mic samples
@@ -56,6 +57,10 @@ export async function startGemini(options: TranslatorOptions): Promise<{ stop: (
   const voice = output.createMediaStreamDestination();
   options.onAudio(voice.stream);
   let playAt = 0; // when the next piece starts, so pieces play back to back
+  // When I started speaking after a quiet spell (from the mic below), until
+  // the first translated sound for it is played. Only for the caption timing.
+  let speechStartedAt: number | null = null;
+  let lastLoudAt = 0;
   const play = (base64: string) => {
     const samples = int16ToFloat(base64ToInt16(base64));
     // Gemini streams non-stop, silence included (about 60% of what it sends
@@ -64,7 +69,15 @@ export async function startGemini(options: TranslatorOptions): Promise<{ stop: (
     // behind. So while we're behind, silent pieces are skipped: the delay
     // drains away at every pause, and no speech is ever dropped.
     const behind = playAt - output.currentTime;
-    if (behind > MAX_BEHIND_S && isSilent(samples)) return;
+    const silent = isSilent(samples);
+    if (behind > MAX_BEHIND_S && silent) return;
+    // Timing for the caption: the first translated sound after the speaker
+    // started -- how long Gemini took, plus how long it waits in our queue.
+    if (!silent && speechStartedAt !== null) {
+      const queueMs = Math.max(0, behind) * 1000;
+      captions.setTiming({ fromStartMs: performance.now() - speechStartedAt + queueMs, queueMs });
+      speechStartedAt = null;
+    }
     const buffer = output.createBuffer(1, samples.length, OUT_RATE);
     buffer.copyToChannel(samples, 0);
     const source = output.createBufferSource();
@@ -131,6 +144,12 @@ export async function startGemini(options: TranslatorOptions): Promise<{ stop: (
     }
     pending = [];
     pendingLength = 0;
+    // Speaking again after 0.8 s of quiet: start a new stopwatch.
+    if (!isSilent(chunk, SPEECH_LEVEL)) {
+      const now = performance.now();
+      if (now - lastLoudAt > 800) speechStartedAt = now;
+      lastLoudAt = now;
+    }
     if (ready && ws.readyState === WebSocket.OPEN)
       ws.send(
         JSON.stringify({

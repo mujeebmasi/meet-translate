@@ -505,7 +505,7 @@ export default function MeetingRoom() {
                   <b className="text-brand">{c.name}</b> {c.english}
                   {!c.done && <span className="text-muted"> ...</span>}
                   {c.original && <small className="block text-muted">{c.original}</small>}
-                  {c.timing?.voiceMs !== undefined && (
+                  {(c.timing?.voiceMs !== undefined || c.timing?.fromStartMs !== undefined) && (
                     <small className="block text-xs text-muted">{timingNote(c.timing)}</small>
                   )}
                 </div>
@@ -542,8 +542,13 @@ export default function MeetingRoom() {
 // Under each caption: how long they talked, and how fast the translated
 // voice followed. Shows whether a long wait was the speaker's own sentence
 // or the translator. ("pause" = the 0.5s of quiet that ends a sentence.)
-function timingNote(timing: { voiceMs?: number; spokeMs?: number }): string {
+function timingNote(timing: { voiceMs?: number; spokeMs?: number; fromStartMs?: number; queueMs?: number }): string {
   const seconds = (ms: number) => (ms / 1000).toFixed(1);
+  // Gemini translates while they talk, so it's timed from when they started.
+  if (timing.fromStartMs !== undefined) {
+    const queued = (timing.queueMs ?? 0) >= 300 ? ` (${seconds(timing.queueMs!)} s queued)` : '';
+    return `voice ${seconds(timing.fromStartMs)} s after they started speaking${queued}`;
+  }
   const spoke = timing.spokeMs ? `spoke ${seconds(timing.spokeMs)} s · ` : '';
   return `${spoke}voice ${seconds(timing.voiceMs ?? 0)} s after the pause`;
 }
