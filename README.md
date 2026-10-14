@@ -12,6 +12,8 @@ and did best in our own tests.
 **Live:** https://meet-translate.vercel.app (creating a meeting needs
 an access code; joining needs only the invite link)
 
+**Demo video:** [on Google Drive](https://drive.google.com/drive/folders/15w5Yi-qPtGMeDCfk9_zgtkGROKKFqs99?usp=sharing)
+
 A sibling of [Indic Fish Realtime Translate](https://github.com/mujeebmasi/indic-fish-realtime-translate),
 which builds the same thing from separate parts (local speech-to-text, an LLM
 translator, a text-to-speech voice). This one hands all of that to a single
