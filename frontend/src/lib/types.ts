@@ -13,8 +13,8 @@ export interface Peer {
   translateOn?: boolean; // their "Translate to ..." switch (on unless said otherwise)
 }
 
-// Same three as the backend's languages.ts. OpenAI's translator accepts
-// Hindi and Telugu (not Tamil or Kannada), and we translate into English.
+// Same three as the backend's languages.ts. OpenAI's models accept Hindi
+// and Telugu (not Tamil or Kannada).
 export const LANGUAGES: Record<string, string> = {
   en: 'English',
   hi: 'Hindi',
@@ -22,12 +22,12 @@ export const LANGUAGES: Record<string, string> = {
 };
 
 // Who hears whom translated -- same rule as the backend's languages.ts:
-// Hindi/Telugu into English with either model; Hindi <-> Telugu only with
-// GPT-Realtime-2 (the other model can't speak Telugu).
+// into English with either model; every other pair (Hindi <-> Telugu,
+// English -> Hindi/Telugu) only with GPT-Realtime-2.
 export function canTranslate(speakerLang: string, listenerLang: string, translator: string): boolean {
-  const pair = `${speakerLang}>${listenerLang}`;
-  if (pair === 'hi>en' || pair === 'te>en') return true;
-  return translator === 'gpt-realtime-2' && (pair === 'hi>te' || pair === 'te>hi');
+  if (speakerLang === listenerLang) return false;
+  if (listenerLang === 'en') return true;
+  return translator === 'gpt-realtime-2';
 }
 
 // The two OpenAI models a meeting can use (the backend's translators.ts

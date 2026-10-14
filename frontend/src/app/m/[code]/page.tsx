@@ -422,7 +422,7 @@ export default function MeetingRoom() {
               <p className="mt-1 text-xs text-muted">
                 You hear the others in this language.{' '}
                 {translator === 'gpt-realtime-2'
-                  ? 'Hindi and Telugu speakers are translated into English, and into each other.'
+                  ? 'Hindi and Telugu speakers are translated into English and into each other; English speakers into Hindi or Telugu.'
                   : 'Hindi and Telugu speakers are translated into English.'}
               </p>
             </div>

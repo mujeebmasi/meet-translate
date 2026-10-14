@@ -25,7 +25,7 @@ const STEPS = [
   { title: 'They hear you in their language', text: 'The translated voice replaces yours on the call, with captions.' },
 ];
 
-const DIRECTIONS = ['Hindi → English', 'Telugu → English', 'Hindi ↔ Telugu'];
+const DIRECTIONS = ['Hindi ↔ English', 'Telugu ↔ English', 'Hindi ↔ Telugu'];
 
 export default function HomePage() {
   // Start waking the free server (it sleeps when unused, and takes up to a

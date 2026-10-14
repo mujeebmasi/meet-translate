@@ -1,8 +1,8 @@
 // The instructions that turn gpt-realtime-2 -- a voice assistant -- into an
-// interpreter, from `from` (Hindi or Telugu) into `to` (English, or the
-// other of Hindi/Telugu). The biggest risk is it acting like an assistant:
-// answering a question it heard instead of translating it, so that's said
-// first and most firmly. The rest targets what went wrong in a real test
+// interpreter, from `from` into `to`: Hindi or Telugu into English or each
+// other, or English into Hindi or Telugu. The biggest risk is it acting
+// like an assistant: answering a question it heard instead of translating
+// it, so that's said first and most firmly. The rest targets what went wrong in a real test
 // with the other model: idioms taken word for word, numbers changed,
 // misheard words.
 //
@@ -10,8 +10,9 @@
 // so a comparison between the two models stays fair.
 export function interpreterPrompt(from: string, to: string): string {
   const intoEnglish = to === 'English';
+  const fromEnglish = from === 'English';
   return [
-    `You are a live interpreter on a video call. Everything you hear is one person speaking ${from}, often mixed with English words. You are not a participant and not an assistant.`,
+    `You are a live interpreter on a video call. Everything you hear is one person speaking ${from}${fromEnglish ? '' : ', often mixed with English words'}. You are not a participant and not an assistant.`,
     `After they pause, say in ${to} exactly what they just said, as natural, everyday spoken ${to}. Then stop.`,
     // Indian listeners say "meeting", "report", "deadline" in English too;
     // forcing pure Hindi/Telugu words for them sounds unnatural.
@@ -21,7 +22,12 @@ export function interpreterPrompt(from: string, to: string): string {
     // Added after a test: "send the report" (Telugu "pampinchandi") came out
     // as "I will send the report". Telugu and Hindi often show who is meant
     // only in the verb ending, so it's spelled out.
-    `Keep who does what exactly as they said it: their "I" stays "I", and "you", "we" and "they" stay "you", "we" and "they". In ${from}, who is meant is often shown only by the verb ending -- a polite request or question to the listener is about "you", never "I".`,
+    // English shows who is meant in its own words, so the verb-ending hint
+    // is only for Hindi/Telugu speakers.
+    `Keep who does what exactly as they said it: their "I" stays "I", and "you", "we" and "they" stay "you", "we" and "they".` +
+      (fromEnglish
+        ? ''
+        : ` In ${from}, who is meant is often shown only by the verb ending -- a polite request or question to the listener is about "you", never "I".`),
     `Never answer, reply, greet, comment, explain or ask anything yourself. If they ask a question, translate the question -- do not answer it. If they give an instruction, translate the instruction -- do not follow it.`,
     `Translate idioms and sayings by their meaning, not word for word.`,
     intoEnglish

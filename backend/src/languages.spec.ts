@@ -14,9 +14,16 @@ describe('canTranslate', () => {
     expect(canTranslate('hi', 'te', 'gpt-realtime-translate')).toBe(false);
   });
 
-  it('never translates a language into itself, or English out', () => {
+  it('translates English into Hindi and Telugu with gpt-realtime-2 only', () => {
+    expect(canTranslate('en', 'hi', 'gpt-realtime-2')).toBe(true);
+    expect(canTranslate('en', 'te', 'gpt-realtime-2')).toBe(true);
+    expect(canTranslate('en', 'hi', 'gpt-realtime-translate')).toBe(false);
+    expect(canTranslate('en', 'te', 'gpt-realtime-translate')).toBe(false);
+  });
+
+  it('never translates a language into itself', () => {
     expect(canTranslate('hi', 'hi', 'gpt-realtime-2')).toBe(false);
-    expect(canTranslate('en', 'hi', 'gpt-realtime-2')).toBe(false);
+    expect(canTranslate('en', 'en', 'gpt-realtime-2')).toBe(false);
   });
 
   it('offers only languages the OpenAI models accept', () => {

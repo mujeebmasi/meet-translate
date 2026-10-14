@@ -18,8 +18,8 @@ import { estimateCostUsd, type RealtimeUsage } from '../openai/cost';
 // the browsers must swap connection details, and this gateway is the
 // go-between -- it passes "signal" messages along without reading them.
 
-// One-to-one calls only: one person speaking Hindi/Telugu, one listening in
-// English. Keeps the call simple, and the cost at one translation at a time.
+// One-to-one calls only (e.g. one person speaking Hindi/Telugu, one
+// listening in English). Keeps the call simple, and the cost low.
 const MAX_PEOPLE = 2;
 
 interface JoinMessage {

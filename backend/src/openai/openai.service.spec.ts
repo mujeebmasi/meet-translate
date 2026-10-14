@@ -95,6 +95,18 @@ describe('OpenAiService', () => {
     );
   });
 
+  it('sets gpt-realtime-2 up to translate English into Telugu', async () => {
+    reply = { status: 200, body: { value: 'ek_2' } };
+    await new OpenAiService().createSession('gpt-realtime-2', 'en', 'te', '42');
+    const instructions: string = lastRequest.body.session.instructions;
+    expect(instructions).toContain('speaking English.');
+    expect(instructions).toContain('say in Telugu');
+    expect(instructions).not.toContain('verb ending'); // a Hindi/Telugu-only hint
+    expect(lastRequest.body.session.audio.input.transcription.language).toBe(
+      'en',
+    );
+  });
+
   it('also understands the secret nested as client_secret.value', async () => {
     reply = {
       status: 200,
