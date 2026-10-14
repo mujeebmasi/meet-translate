@@ -1,8 +1,9 @@
 import { LANGUAGES, canTranslate } from './languages';
+import { TRANSLATORS } from './openai/translators';
 
 describe('canTranslate', () => {
-  it('translates Hindi and Telugu into English with either model', () => {
-    for (const model of ['gpt-realtime-2', 'gpt-realtime-translate']) {
+  it('translates Hindi and Telugu into English with every model', () => {
+    for (const model of TRANSLATORS) {
       expect(canTranslate('hi', 'en', model)).toBe(true);
       expect(canTranslate('te', 'en', model)).toBe(true);
     }
@@ -19,6 +20,13 @@ describe('canTranslate', () => {
     expect(canTranslate('en', 'te', 'gpt-realtime-2')).toBe(true);
     expect(canTranslate('en', 'hi', 'gpt-realtime-translate')).toBe(false);
     expect(canTranslate('en', 'te', 'gpt-realtime-translate')).toBe(false);
+  });
+
+  it('translates every other pair with Gemini too', () => {
+    for (const pair of ['hi>te', 'te>hi', 'en>hi', 'en>te']) {
+      const [from, to] = pair.split('>');
+      expect(canTranslate(from, to, 'gemini-3.5-live-translate')).toBe(true);
+    }
   });
 
   it('never translates a language into itself', () => {

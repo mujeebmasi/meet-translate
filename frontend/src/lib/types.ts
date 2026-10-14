@@ -22,16 +22,16 @@ export const LANGUAGES: Record<string, string> = {
 };
 
 // Who hears whom translated -- same rule as the backend's languages.ts:
-// into English with either model; every other pair (Hindi <-> Telugu,
-// English -> Hindi/Telugu) only with GPT-Realtime-2.
+// into English with every model; every other pair (Hindi <-> Telugu,
+// English -> Hindi/Telugu) with every model except GPT-Realtime-Translate.
 export function canTranslate(speakerLang: string, listenerLang: string, translator: string): boolean {
   if (speakerLang === listenerLang) return false;
   if (listenerLang === 'en') return true;
-  return translator === 'gpt-realtime-2';
+  return translator !== 'gpt-realtime-translate';
 }
 
-// The two OpenAI models a meeting can use (the backend's translators.ts
-// explains the difference). Picked when creating the meeting.
+// The models a meeting can use (the backend's translators.ts explains the
+// difference). Picked when creating the meeting.
 export const TRANSLATORS: Record<string, { name: string; about: string }> = {
   'gpt-realtime-2': {
     name: 'GPT-Realtime-2',
@@ -40,5 +40,9 @@ export const TRANSLATORS: Record<string, { name: string; about: string }> = {
   'gpt-realtime-translate': {
     name: 'GPT-Realtime-Translate',
     about: 'Translates while the speaker is still talking. Takes no instructions.',
+  },
+  'gemini-3.5-live-translate': {
+    name: 'Gemini Live Translate',
+    about: "Google's model. Translates while the speaker is still talking, in every direction. Takes no instructions.",
   },
 };

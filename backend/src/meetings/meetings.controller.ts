@@ -11,6 +11,7 @@ import { MeetingsService } from './meetings.service';
 import { PresenceService } from './presence.service';
 import { CreateMeetingDto, TranslationSessionDto } from './meetings.dto';
 import { OpenAiService } from '../openai/openai.service';
+import { GeminiService } from '../openai/gemini.service';
 import { canTranslate } from '../languages';
 import { checkAccessCode } from '../access-code';
 
@@ -20,6 +21,7 @@ export class MeetingsController {
     private meetings: MeetingsService,
     private presence: PresenceService,
     private openai: OpenAiService,
+    private gemini: GeminiService,
   ) {}
 
   // Needs the access code (header x-access-code) when the server has one.
@@ -61,6 +63,8 @@ export class MeetingsController {
       throw new ForbiddenException(
         "This meeting can't translate between these two people's languages",
       );
+    if (meeting.translator === 'gemini-3.5-live-translate')
+      return this.gemini.createSession(listener.lang);
     return this.openai.createSession(
       meeting.translator,
       speaker.lang,

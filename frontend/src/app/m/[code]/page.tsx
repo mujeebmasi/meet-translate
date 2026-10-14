@@ -421,8 +421,8 @@ export default function MeetingRoom() {
               <LanguageSelect value={lang} onChange={setLang} />
               <p className="mt-1 text-xs text-muted">
                 You hear the others in this language.{' '}
-                {translator === 'gpt-realtime-2'
-                  ? 'Hindi and Telugu speakers are translated into English and into each other; English speakers into Hindi or Telugu.'
+                {translator !== 'gpt-realtime-translate'
+                  ?'Hindi and Telugu speakers are translated into English and into each other; English speakers into Hindi or Telugu.'
                   : 'Hindi and Telugu speakers are translated into English.'}
               </p>
             </div>

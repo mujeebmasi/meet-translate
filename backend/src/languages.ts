@@ -12,11 +12,10 @@ export const LANGUAGES: Record<string, string> = {
 export const TARGET_LANG = 'en'; // the default language for a new person
 
 // Which "speaker > listener" directions are translated:
-// - Hindi or Telugu into English, by either model;
+// - Hindi or Telugu into English, by every model;
 // - every other pair (Hindi <-> Telugu, English -> Hindi or Telugu), by
-//   gpt-realtime-2 only. Its target language comes from our prompt;
-//   gpt-realtime-translate is only ever set up to speak English here (and
-//   can't speak Telugu at all).
+//   every model except gpt-realtime-translate: it's only ever set up to
+//   speak English here (and can't speak Telugu at all).
 export function canTranslate(
   speakerLang: string,
   listenerLang: string,
@@ -24,5 +23,5 @@ export function canTranslate(
 ): boolean {
   if (speakerLang === listenerLang) return false;
   if (listenerLang === 'en') return true;
-  return translator === 'gpt-realtime-2';
+  return translator !== 'gpt-realtime-translate';
 }

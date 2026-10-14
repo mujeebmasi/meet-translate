@@ -11,6 +11,7 @@ import { Button, ErrorText, Label } from '@/components/ui';
 const TAGS: Record<string, string> = {
   'gpt-realtime-2': 'Recommended',
   'gpt-realtime-translate': 'Fastest start',
+  'gemini-3.5-live-translate': 'Experimental',
 };
 
 // /start -- create a meeting, or join one with a code or link. The home

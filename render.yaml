@@ -23,6 +23,9 @@ services:
         value: "24"
       - key: OPENAI_API_KEY
         sync: false
+      # For meetings that use Gemini 3.5 Live Translate.
+      - key: GEMINI_API_KEY
+        sync: false
       # Needed to create a meeting, so strangers can't use the OpenAI key.
       - key: ACCESS_CODE
         sync: false
