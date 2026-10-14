@@ -528,15 +528,17 @@ export default function MeetingRoom() {
           mirror
           videoOff={cameraOff}
           name={name}
-          label={`${name} (you) · ${LANGUAGES[lang]}${talking ? ' · talking' : ''}`}
+          label={`${name} (you) · ${LANGUAGES[lang]}`}
+          talking={talking}
         />
         {peers.map((p) => (
           <VideoTile
             key={p.socketId}
             stream={p.stream}
             name={p.name}
-            label={`${p.name} · ${LANGUAGES[p.lang] ?? p.lang}${isTranslatedForMe(p) ? ` → ${LANGUAGES[lang]}` : ''}${p.talking ? ' · talking' : ''}`}
+            label={`${p.name} · ${LANGUAGES[p.lang] ?? p.lang}${isTranslatedForMe(p) ? ` → ${LANGUAGES[lang]}` : ''}`}
             notice={p.link === 'failed' ? "Can't connect on this network." : undefined}
+            talking={p.talking}
           />
         ))}
         {peers.length === 0 && (

@@ -10,6 +10,7 @@ type VideoTileProps = {
   mirror?: boolean; // your own camera, shown like a mirror
   videoOff?: boolean;
   notice?: string; // shown over the tile, e.g. still connecting
+  talking?: boolean; // holding "Hold to talk": the tile is highlighted
 };
 
 // A <video> can't be given a stream through a prop -- it has to be set on
@@ -18,7 +19,7 @@ type VideoTileProps = {
 // Sound plays through its own <audio> element, not the <video>: a <video>
 // doesn't start until a picture arrives, so someone with no camera frames
 // would also be silent.
-export function VideoTile({ stream, label, name, muted = false, mirror, videoOff, notice }: VideoTileProps) {
+export function VideoTile({ stream, label, name, muted = false, mirror, videoOff, notice, talking }: VideoTileProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
 
@@ -30,7 +31,19 @@ export function VideoTile({ stream, label, name, muted = false, mirror, videoOff
   const noPicture = !stream || videoOff || stream.getVideoTracks().length === 0 || !!notice;
 
   return (
-    <div className="relative min-h-40 overflow-hidden rounded-xl bg-black">
+    // While they talk: a glowing border and a "Speaking" badge, so the
+    // listener sees at a glance who has the floor.
+    <div
+      className={`relative min-h-40 overflow-hidden rounded-xl bg-black transition-shadow ${
+        talking ? 'shadow-[0_0_0_3px_var(--color-brand),0_0_24px_var(--color-brand)]' : ''
+      }`}
+    >
+      {talking && (
+        <span className="absolute top-2 left-2 z-10 flex items-center gap-1.5 rounded-full bg-brand px-2.5 py-0.5 text-xs font-semibold text-white">
+          <span className="size-2 animate-pulse rounded-full bg-white" />
+          Speaking
+        </span>
+      )}
       <audio ref={audioRef} autoPlay muted={muted} />
       <video
         ref={videoRef}
@@ -44,7 +57,9 @@ export function VideoTile({ stream, label, name, muted = false, mirror, videoOff
           <span className="flex size-16 items-center justify-center rounded-full bg-brand-soft text-2xl font-semibold text-brand">
             {name.trim().charAt(0).toUpperCase() || '?'}
           </span>
-          {(notice || !stream) && <span className="max-w-64 px-3 text-center text-xs text-muted">{notice ?? 'Connecting...'}</span>}
+          {(notice || !stream) && (
+            <span className="max-w-64 px-3 text-center text-xs text-muted">{notice ?? 'Connecting...'}</span>
+          )}
         </div>
       )}
       <span className="absolute bottom-2 left-2 max-w-[calc(100%-1rem)] truncate rounded-full bg-page/75 px-2.5 py-0.5 text-xs">
