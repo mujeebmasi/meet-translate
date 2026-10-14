@@ -9,7 +9,7 @@ describe('MeetingsService', () => {
     expect(meetings.find(meeting.code)).toEqual({
       code: meeting.code,
       title: 'Interview',
-      translator: 'gpt-realtime-2',
+      translator: 'gemini-3.5-live-translate',
     });
   });
 
@@ -22,7 +22,9 @@ describe('MeetingsService', () => {
     expect(meetings.create('a', 'gpt-realtime-translate').translator).toBe(
       'gpt-realtime-translate',
     );
-    expect(meetings.create('b', 'gpt-9').translator).toBe('gpt-realtime-2');
+    expect(meetings.create('b', 'gpt-9').translator).toBe(
+      'gemini-3.5-live-translate',
+    );
   });
 
   it('says when a code does not exist', () => {

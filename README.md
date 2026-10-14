@@ -24,13 +24,13 @@ real call (see [Problems found in real calls](#problems-found-in-real-calls)).
 - **Directions:** all six between Hindi, Telugu and English. Everyone hears
   the other person in the language they picked under "I speak".
 - **Three models**, picked per meeting:
-  - **GPT-Realtime-2** (default): OpenAI's voice-assistant model, turned
+  - **GPT-Realtime-2**: OpenAI's voice-assistant model, turned
     into an interpreter by our own prompt. Translates after each sentence.
     All six directions.
   - **GPT-Realtime-Translate**: OpenAI's dedicated interpreter. Translates
     while the speaker is still talking, but takes no instructions, and can't
     speak Telugu -- so only into English here.
-  - **Gemini 3.5 Live Translate**: Google's dedicated interpreter. Also
+  - **Gemini 3.5 Live Translate** (default): Google's dedicated interpreter. Also
     translates while the speaker talks and takes no instructions, but speaks
     Telugu too: all six directions.
 - **Captions** for both sides: the listener sees the translation, the
@@ -45,7 +45,7 @@ real call (see [Problems found in real calls](#problems-found-in-real-calls)).
 | Page | What's on it |
 |---|---|
 | `/` | What the app does, the measured numbers for GPT-Realtime-2 and Gemini side by side (see [Results](#results)), how it works in three steps, and **Let's Get Started**. It also starts waking the free server while you read. |
-| `/start` | One card with a **Start / Join** switch. Starting: a meeting name, the translator as three option cards (GPT-Realtime-2 *Recommended*, GPT-Realtime-Translate *Fastest start*, Gemini Live Translate *Experimental*), and the access code, hidden like a password. Joining: just the invite link or code. |
+| `/start` | One card with a **Start / Join** switch. Starting: a meeting name, the translator as three option cards (Gemini Live Translate *Recommended*, GPT-Realtime-2 *Takes instructions*, GPT-Realtime-Translate *Into English only*), and the access code, hidden like a password. Joining: just the invite link or code. |
 | `/m/<code>` | The call: both video tiles, the language switch, captions with the timing under each line, mute / camera / translate controls. |
 
 ## How it works
@@ -228,8 +228,8 @@ Researched, not built yet:
   noise and number handling according to OpenAI -- a one-line upgrade.
 - **GPT-Realtime-2.1-mini**: about 3× cheaper audio; needs testing on Hindi
   and Telugu.
-- **Gemini as the default**, once a real Telugu speaker and a long call have
-  been tried.
+- **Test Gemini (now the default) with a real Telugu speaker and a long
+  call** -- not done yet.
 - **Gemini 3.8 Live** (Google's assistant model, not the translator): takes
   instructions like GPT-Realtime-2,
   audio roughly a tenth of the price per token, a free tier, and Hindi and

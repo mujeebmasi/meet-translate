@@ -8,19 +8,10 @@ import { api } from '@/lib/api';
 // /start (create or join a call).
 
 // From our own test calls (see the README's Results section), one row per
-// model. GPT-Realtime-2 waits for the end of each sentence, so its times
-// count from when the speaker stops; Gemini translates while they talk.
+// model, the default (Gemini) first. GPT-Realtime-2 waits for the end of
+// each sentence, so its times count from when the speaker stops; Gemini
+// translates while they talk.
 const MODEL_STATS = [
-  {
-    model: 'GPT-Realtime-2',
-    note: 'translates after each sentence',
-    stats: [
-      { value: '~1 s', label: 'Caption appears', detail: 'after the speaker stops' },
-      { value: '~1.4 s', label: 'Translated voice starts', detail: 'after the speaker stops' },
-      { value: '₹0.3–0.5', label: 'Per sentence', detail: 'silence costs nothing' },
-      { value: '17 / 18', label: 'Lines right in real calls', detail: 'Hindi → English, Telugu → Hindi' },
-    ],
-  },
   {
     model: 'Gemini 3.5 Live Translate',
     note: 'translates while you talk',
@@ -31,13 +22,23 @@ const MODEL_STATS = [
       { value: '6 / 6', label: 'Directions', detail: 'incl. into Telugu, which OpenAI can’t speak' },
     ],
   },
+  {
+    model: 'GPT-Realtime-2',
+    note: 'translates after each sentence',
+    stats: [
+      { value: '~1 s', label: 'Caption appears', detail: 'after the speaker stops' },
+      { value: '~1.4 s', label: 'Translated voice starts', detail: 'after the speaker stops' },
+      { value: '₹0.3–0.5', label: 'Per sentence', detail: 'silence costs nothing' },
+      { value: '17 / 18', label: 'Lines right in real calls', detail: 'Hindi → English, Telugu → Hindi' },
+    ],
+  },
 ];
 
 const STEPS = [
-  { title: 'You speak', text: 'Your browser sends your own microphone straight to the translator, OpenAI or Google.' },
+  { title: 'You speak', text: 'Your browser sends your own microphone straight to the translator, Google or OpenAI.' },
   {
     title: 'It interprets',
-    text: 'GPT-Realtime-2 translates each sentence when you pause, keeping names and numbers exact. Gemini Live Translate translates while you are still talking.',
+    text: 'Gemini Live Translate translates while you are still talking. GPT-Realtime-2 translates each sentence when you pause, keeping names and numbers exact.',
   },
   { title: 'They hear you in their language', text: 'The translated voice replaces yours on the call, with captions.' },
 ];
@@ -55,7 +56,7 @@ export default function HomePage() {
     <main className="mx-auto flex min-h-screen max-w-4xl flex-col justify-center gap-10 px-4 py-14">
       <section className="text-center">
         <p className="mb-4 inline-block rounded-full border border-line bg-surface px-3 py-1 text-xs text-muted">
-          Live interpretation · OpenAI GPT-Realtime-2 or Google Gemini
+          Live interpretation · Google Gemini or OpenAI GPT-Realtime-2
         </p>
         <h1 className="text-5xl font-semibold sm:text-6xl">
           Meet <em className="text-brand not-italic">Translate</em>

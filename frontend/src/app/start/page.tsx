@@ -9,9 +9,9 @@ import { Button, ErrorText, Label } from '@/components/ui';
 
 // A short tag on each translator option, to make the choice obvious.
 const TAGS: Record<string, string> = {
-  'gpt-realtime-2': 'Recommended',
-  'gpt-realtime-translate': 'Fastest start',
-  'gemini-3.5-live-translate': 'Experimental',
+  'gemini-3.5-live-translate': 'Recommended',
+  'gpt-realtime-2': 'Takes instructions',
+  'gpt-realtime-translate': 'Into English only',
 };
 
 // /start -- create a meeting, or join one with a code or link. The home
@@ -20,7 +20,7 @@ export default function StartPage() {
   const router = useRouter();
   const [mode, setMode] = useState<'start' | 'join'>('start');
   const [title, setTitle] = useState('');
-  const [translator, setTranslator] = useState('gpt-realtime-2');
+  const [translator, setTranslator] = useState('gemini-3.5-live-translate');
   const [code, setCode] = useState('');
   const [error, setError] = useState('');
   const [creating, setCreating] = useState(false);

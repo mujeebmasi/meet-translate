@@ -31,8 +31,13 @@ export function canTranslate(speakerLang: string, listenerLang: string, translat
 }
 
 // The models a meeting can use (the backend's translators.ts explains the
-// difference). Picked when creating the meeting.
+// difference). Picked when creating the meeting; shown in this order, the
+// default (Gemini) first.
 export const TRANSLATORS: Record<string, { name: string; about: string }> = {
+  'gemini-3.5-live-translate': {
+    name: 'Gemini Live Translate',
+    about: "Google's model. Translates while the speaker is still talking, in every direction. Takes no instructions.",
+  },
   'gpt-realtime-2': {
     name: 'GPT-Realtime-2',
     about: 'Follows our interpreter instructions. Translates after each pause.',
@@ -40,9 +45,5 @@ export const TRANSLATORS: Record<string, { name: string; about: string }> = {
   'gpt-realtime-translate': {
     name: 'GPT-Realtime-Translate',
     about: 'Translates while the speaker is still talking. Takes no instructions.',
-  },
-  'gemini-3.5-live-translate': {
-    name: 'Gemini Live Translate',
-    about: "Google's model. Translates while the speaker is still talking, in every direction. Takes no instructions.",
   },
 };

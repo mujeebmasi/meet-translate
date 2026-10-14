@@ -15,4 +15,7 @@ export const TRANSLATORS = [
   'gpt-realtime-translate',
   'gemini-3.5-live-translate',
 ];
-export const DEFAULT_TRANSLATOR = 'gpt-realtime-2';
+
+// Gemini by default: in our real calls it did best (translates as you talk,
+// every direction). GPT-Realtime-2 was the default before.
+export const DEFAULT_TRANSLATOR = 'gemini-3.5-live-translate';
