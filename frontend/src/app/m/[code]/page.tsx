@@ -262,6 +262,7 @@ export default function MeetingRoom() {
       if (stopped) return;
       translator = await startTranslator(session.translator, {
         source: mic,
+        language: lang,
         clientSecret: session.clientSecret,
         onAudio: (voice) => {
           keepFlowing(voice);

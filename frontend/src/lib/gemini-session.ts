@@ -98,7 +98,8 @@ export async function startGemini(options: TranslatorOptions): Promise<{ stop: (
         setup: {
           model: MODEL,
           generationConfig: { responseModalities: ['AUDIO'] },
-          inputAudioTranscription: {}, // my words as text
+          // my words as text, with my language as a hint (see the backend's gemini.service.ts)
+          inputAudioTranscription: options.language ? { languageCodes: [options.language] } : {},
           outputAudioTranscription: {}, // the translation as text
         },
       }),

@@ -64,7 +64,7 @@ export class MeetingsController {
         "This meeting can't translate between these two people's languages",
       );
     if (meeting.translator === 'gemini-3.5-live-translate')
-      return this.gemini.createSession(listener.lang);
+      return this.gemini.createSession(speaker.lang, listener.lang);
     return this.openai.createSession(
       meeting.translator,
       speaker.lang,

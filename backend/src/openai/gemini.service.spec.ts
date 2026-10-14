@@ -45,7 +45,7 @@ describe('GeminiService', () => {
       status: 200,
       body: { name: 'auth_tokens/abc', expireTime: '2026-10-14T12:30:00Z' },
     };
-    const result = await new GeminiService().createSession('te');
+    const result = await new GeminiService().createSession('en', 'te');
 
     expect(result).toEqual({
       translator: 'gemini-3.5-live-translate',
@@ -61,11 +61,13 @@ describe('GeminiService', () => {
       targetLanguageCode: 'te',
     });
     expect(setup.generationConfig.responseModalities).toEqual(['AUDIO']);
+    // the speaker's own language, as a hint for recognising their speech
+    expect(setup.inputAudioTranscription).toEqual({ languageCodes: ['en'] });
   });
 
   it("passes on Google's own error message", async () => {
     reply = { status: 403, body: { error: { message: 'API key not valid' } } };
-    await expect(new GeminiService().createSession('en')).rejects.toThrow(
+    await expect(new GeminiService().createSession('hi', 'en')).rejects.toThrow(
       'Gemini 403: API key not valid',
     );
   });
@@ -74,9 +76,9 @@ describe('GeminiService', () => {
     const key = process.env.GEMINI_API_KEY;
     delete process.env.GEMINI_API_KEY;
     try {
-      await expect(new GeminiService().createSession('en')).rejects.toThrow(
-        ServiceUnavailableException,
-      );
+      await expect(
+        new GeminiService().createSession('hi', 'en'),
+      ).rejects.toThrow(ServiceUnavailableException);
     } finally {
       process.env.GEMINI_API_KEY = key;
     }
