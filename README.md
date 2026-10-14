@@ -5,10 +5,11 @@ in their own language, with live captions. Translation is done by realtime
 voice models -- two from OpenAI and one from Google, picked per meeting, so
 they can be compared on real calls.
 
-It started as an OpenAI-only experiment (hence the repo name); Google's
-Gemini 3.5 Live Translate was added later and did best in our own tests.
+It started as an OpenAI-only experiment (first named
+`openai-meet-translate`); Google's Gemini 3.5 Live Translate was added later
+and did best in our own tests.
 
-**Live:** https://openai-meet-translate.vercel.app (creating a meeting needs
+**Live:** https://meet-translate.vercel.app (creating a meeting needs
 an access code; joining needs only the invite link)
 
 A sibling of [Meet Translate](https://github.com/mujeebmasi/meeting-translate),

@@ -29,8 +29,8 @@ services:
       # Needed to create a meeting, so strangers can't use the OpenAI key.
       - key: ACCESS_CODE
         sync: false
-      # The Vercel address of the frontend, e.g. https://openai-meet-translate.vercel.app
-      # (allowed to call this API; comma-separate several).
+      # The Vercel address of the frontend, e.g. https://meet-translate.vercel.app
+      # (allowed to call this API; comma-separate several, e.g. old + new address).
       - key: FRONTEND_URL
         sync: false
       # TURN relay for networks that block direct video calls (optional).
