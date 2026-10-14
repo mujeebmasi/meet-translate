@@ -109,7 +109,7 @@ ends while the previous translation is still playing waits its turn.
 long one**; silence is close to free. Every finished line is in the server
 log with its cost and timing.
 
-**Gemini 3.5 Live Translate** (first tests, 14 Oct 2026):
+**Gemini 3.5 Live Translate** (real calls, 14 Oct 2026):
 
 - **Real call, English → Telugu:** translations right, apart from one
   phrase dropped ("in real time"); the voice ran **under ~2 s behind** the
@@ -117,9 +117,13 @@ log with its cost and timing.
 - **Recorded Hindi clip:** right into English ("How are you? Let's start
   today's meeting.") and into Telugu; the translated voice started **~3.4 s
   after the speaker started**, before the 3.9 s sentence had ended.
+- **Every direction on the live site:** Hindi, Telugu and English speakers,
+  each heard in the other two languages, all worked in real calls -- as did
+  the two OpenAI models in the directions they support.
 - **Cost:** Google's price is about **$0.037 a minute (~₹3)**, input and
   output audio, silence included.
-- Not tested yet: a Telugu speaker as the source, and long calls.
+- Not tested yet: long calls (Google doesn't document a session limit), and
+  a line-by-line accuracy count like the one for GPT-Realtime-2.
 
 ## Compared with Meet Translate
 
@@ -229,8 +233,8 @@ Researched, not built yet:
   noise and number handling according to OpenAI -- a one-line upgrade.
 - **GPT-Realtime-2.1-mini**: about 3× cheaper audio; needs testing on Hindi
   and Telugu.
-- **Test Gemini (now the default) with a real Telugu speaker and a long
-  call** -- not done yet.
+- **A long call with Gemini (now the default)**, to find Google's session
+  limit, and an accuracy count per direction.
 - **Gemini 3.8 Live** (Google's assistant model, not the translator): takes
   instructions like GPT-Realtime-2,
   audio roughly a tenth of the price per token, a free tier, and Hindi and
