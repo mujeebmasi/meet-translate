@@ -38,7 +38,10 @@ function meetingCodeOf(client: Socket): string | undefined {
 @WebSocketGateway({
   path: '/ws',
   cors: {
-    origin: (process.env.FRONTEND_URL ?? 'http://localhost:3100').split(','),
+    // Trimmed like in main.ts: "a, b" with a space must still allow b.
+    origin: (process.env.FRONTEND_URL ?? 'http://localhost:3100')
+      .split(',')
+      .map((origin) => origin.trim()),
   },
 })
 export class MeetingsGateway implements OnGatewayDisconnect {
