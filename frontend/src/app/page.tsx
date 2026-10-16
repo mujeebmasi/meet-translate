@@ -3,6 +3,7 @@
 import { useEffect } from 'react';
 import Link from 'next/link';
 import { api } from '@/lib/api';
+import { DemoVideoButton } from '@/components/demo-video';
 
 // The home page: what the app does, how fast and how well, and a button to
 // /start (create or join a call).
@@ -73,6 +74,10 @@ export default function HomePage() {
             </span>
           ))}
         </div>
+        <DemoVideoButton className="mt-6 inline-flex items-center gap-2 rounded-xl border border-line bg-surface px-5 py-2.5 text-sm font-semibold text-body transition-colors hover:border-brand hover:text-brand">
+          ▶ Watch the demo video
+        </DemoVideoButton>
+        <p className="mt-2 text-xs text-muted">A real recorded call, seen from each side.</p>
       </section>
 
       {MODEL_STATS.map((row) => (
@@ -108,12 +113,17 @@ export default function HomePage() {
       </section>
 
       <section className="flex flex-col items-center gap-3 text-center">
-        <Link
-          href="/start"
-          className="rounded-xl bg-brand px-8 py-3 text-base font-semibold text-white transition-colors hover:bg-brand-dark"
-        >
-          Let&apos;s Get Started →
-        </Link>
+        <div className="flex flex-wrap justify-center gap-3">
+          <Link
+            href="/start"
+            className="rounded-xl bg-brand px-8 py-3 text-base font-semibold text-white transition-colors hover:bg-brand-dark"
+          >
+            Let&apos;s Get Started →
+          </Link>
+          <DemoVideoButton className="rounded-xl border border-line bg-surface px-8 py-3 text-base font-semibold text-body transition-colors hover:border-brand hover:text-brand">
+            ▶ Watch the demo
+          </DemoVideoButton>
+        </div>
         <p className="max-w-xl text-xs text-muted">
           Numbers from our own test calls on laptop mics. GPT-Realtime-2 waits for the end of each sentence, so a
           longer sentence means a longer wait. Gemini starts while you are still talking.

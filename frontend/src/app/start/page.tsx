@@ -4,6 +4,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { api, errorMessage } from '@/lib/api';
+import { DemoVideoButton } from '@/components/demo-video';
 import { TRANSLATORS } from '@/lib/types';
 import { Button, ErrorText, Label } from '@/components/ui';
 
@@ -162,6 +163,11 @@ export default function StartPage() {
                   required
                 />
                 <p className="mt-1 text-xs text-muted">Only needed to start a call. Joining needs just the link.</p>
+                <p className="mt-1 text-xs text-muted">
+                  No code?{' '}
+                  <DemoVideoButton className="text-brand hover:underline">Watch the demo video</DemoVideoButton>{' '}
+                  instead.
+                </p>
               </div>
             )}
 
