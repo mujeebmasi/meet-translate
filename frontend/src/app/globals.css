@@ -8,6 +8,11 @@
    --------------------------------------------------------------------------- */
 @theme {
   --font-sans: var(--font-inter), sans-serif;
+  --font-display: var(--font-bricolage), var(--font-inter), sans-serif;
+  --font-script-hi: var(--font-devanagari), sans-serif;
+  --font-script-te: var(--font-telugu), sans-serif;
+
+  --color-caption: #fbbf24; /* live captions: the one warm colour on the page */
 
   --color-page: #020617; /* page background, deep navy */
   --color-surface: #0b1220; /* cards sit slightly above the page */
@@ -34,6 +39,46 @@ body {
   color: var(--color-body);
   background-image: radial-gradient(60rem 30rem at 50% -10rem, rgba(23, 128, 254, 0.13), transparent);
   background-repeat: no-repeat;
+}
+
+/* The speaker's bars in the home page's example call, and the caption cursor.
+   Both are switched off for people who ask for less motion. */
+@keyframes wave {
+  0%,
+  100% {
+    transform: scaleY(0.35);
+  }
+  50% {
+    transform: scaleY(1);
+  }
+}
+
+@keyframes blink {
+  50% {
+    opacity: 0;
+  }
+}
+
+.wave-bar {
+  transform-origin: bottom;
+  animation: wave 0.9s ease-in-out infinite;
+}
+
+.caret {
+  animation: blink 1s steps(1) infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wave-bar,
+  .caret {
+    animation: none;
+  }
+}
+
+a:focus-visible,
+button:focus-visible {
+  outline: 2px solid var(--color-brand);
+  outline-offset: 3px;
 }
 
 input,
